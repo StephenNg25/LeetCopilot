@@ -21,6 +21,7 @@ interface Manifest {
         [key: number]: string
     }
     permissions: string[]
+    host_permissions?: string[]
     content_scripts: Array<{
         matches: string[]
         js: string[]
@@ -68,10 +69,13 @@ const createBaseManifest = async (): Promise<Manifest> => {
                 48: './assets/icon-48.png',
                 128: './assets/icon-128.png'
             },
-            permissions: [],
+            permissions: ["storage", "tabs"],
+            host_permissions: [
+                "https://leetcode.com/*"
+            ],
             content_scripts: [
                 {
-                    matches: ['<all_urls>'],
+                    matches: ["https://leetcode.com/*"],
                     js: ['./js/content.js']
                 }
             ],

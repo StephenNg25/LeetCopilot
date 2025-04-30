@@ -1,7 +1,7 @@
 {
-    "name": "web-extension-boilerplate-23",
-    "longName": "Web Extension Boilerplate by withSeismic.com",
-    "description": "Web Extension Boilerplate by withSeismic.com",
+    "name": "leetcopilot-extension-by-stev-ng",
+    "longName": "LeetCopilot",
+    "description": "A LeetCode Hint Tool Chrome Extension",
     "version": "1.0.0",
     "main": "index.js",
     "scripts": {

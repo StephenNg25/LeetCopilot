@@ -1,5 +1,10 @@
 import { browser } from 'webextension-polyfill-ts'
 
+export const isLeetCodeProblemPage = () => {
+    return /^https:\/\/leetcode\.com\/problems\/[^/]+/.test(window.location.href)
+}
+  
+
 export const sendMessageToBackground = async (message: any): Promise<any> => {
     try {
         return await browser.runtime.sendMessage(message)
