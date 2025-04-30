@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import Panel from './Panel' // <- NEW
 
 const App = () => {
     const [isPanelOpen, setIsPanelOpen] = useState(false)
@@ -90,31 +91,7 @@ const App = () => {
 
             {/* Sidebar Panel */}
             {isPanelOpen && (
-                <div className="fixed top-0 right-0 h-full w-[400px] bg-neutral-900 shadow-2xl z-[999999] border-l border-zinc-800 flex flex-col">
-                    <div className="p-4 text-white border-b border-zinc-700 flex justify-between items-center">
-                        <h2 className="text-lg font-bold">LeetCopilot</h2>
-                        <button
-                            onClick={togglePanel}
-                            className="text-sm text-gray-300 hover:text-white"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                    <div className="p-4 text-white overflow-auto">
-                        {[10, 20, 30].map(percent => (
-                            <div key={percent} className="mb-4 p-4 bg-zinc-800 rounded-lg">
-                                <p className="font-semibold text-fuchsia-400">{percent}% Hint</p>
-                                <p className="text-sm text-gray-300">
-                                    Placeholder hint content for level {percent}.
-                                </p>
-                                <input
-                                    className="w-full mt-2 p-2 rounded-md text-black"
-                                    placeholder="Ask a follow-up..."
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <Panel onClose={togglePanel} />
             )}
         </>
     )

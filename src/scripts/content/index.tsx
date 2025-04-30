@@ -12,17 +12,16 @@ const injectReact = (rootId: string): void => {
         console.log('❌ Not a LeetCode problem page')
         return
     }
-    
+
     console.log('✅ Injecting LeetCopilot UI...')
-    
+
     const container = document.createElement('div')
     container.id = rootId
     container.style.position = 'fixed'
     container.style.top = '0'
-    container.style.left = '0'
-    container.style.width = '100%'
-    container.style.height = '100%'
-    container.style.zIndex = '999999'
+    container.style.right = '0'
+    container.style.zIndex = '2147483666' // max z-index
+    container.style.pointerEvents = 'none' // Let page interactions through
     document.body.appendChild(container)
 
     const target: ShadowRoot | HTMLElement = isProduction
@@ -34,7 +33,9 @@ const injectReact = (rootId: string): void => {
     root.render(
         <React.StrictMode>
             {isProduction && <style>{styles.toString()}</style>}
-            <App />
+            <div style={{ all: 'initial', pointerEvents: 'auto' }}>
+                <App />
+            </div>
         </React.StrictMode>
     )
 }

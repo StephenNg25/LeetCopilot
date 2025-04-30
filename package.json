@@ -42,5 +42,8 @@
         "webext-bridge": "^6.0.1",
         "webextension-polyfill": "^0.10.0",
         "webextension-polyfill-ts": "^0.26.0"
+    },
+    "dependencies": {
+        "lucide-react": "^0.503.0"
     }
 }
