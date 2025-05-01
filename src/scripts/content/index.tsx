@@ -8,13 +8,17 @@ const isProduction: boolean = process.env.NODE_ENV === 'production'
 const ROOT_ID = 'leetcopilot-root'
 
 const injectReact = (rootId: string): void => {
-    if (!isLeetCodeProblemPage()) return
+    if (!isLeetCodeProblemPage()) {
+        console.log('[LeetCopilot] Not a valid problem page.')
+        return
+    }
 
-    // Prevent duplicate injection
-    if (document.getElementById(rootId)) return
+    if (document.getElementById(rootId)) {
+        console.log('[LeetCopilot] Panel already injected.')
+        return
+    }
 
-    console.log('✅ Injecting LeetCopilot UI...')
-
+    console.log('[LeetCopilot] Injecting UI...')
     const container = document.createElement('div')
     container.id = rootId
     container.style.position = 'fixed'
@@ -24,9 +28,7 @@ const injectReact = (rootId: string): void => {
     container.style.pointerEvents = 'none'
     document.body.appendChild(container)
 
-    const target = isProduction
-        ? container.attachShadow({ mode: 'open' })
-        : container
+    const target = isProduction ? container.attachShadow({ mode: 'open' }) : container
 
     const root = createRoot(target)
     root.render(
@@ -39,22 +41,29 @@ const injectReact = (rootId: string): void => {
     )
 }
 
-// ✅ First injection when the script loads
+// ✅ Inject panel on initial load
 injectReact(ROOT_ID)
 
-// ✅ Monitor SPA navigation (LeetCode doesn't fully reload pages)
+// ✅ Detect SPA route change
 let lastPath = window.location.pathname
 setInterval(() => {
     const currentPath = window.location.pathname
     if (currentPath !== lastPath) {
         lastPath = currentPath
-        console.log('🔁 SPA navigation detected:', currentPath)
+        console.log('[LeetCopilot] Detected SPA navigation:', currentPath)
 
-        // Clean up old panel if needed
         const oldRoot = document.getElementById(ROOT_ID)
         if (oldRoot) oldRoot.remove()
 
-        // Re-inject panel on new problem page
         injectReact(ROOT_ID)
     }
 }, 800)
+
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.message === 'clicked_browser_action') {
+        const root = document.getElementById(ROOT_ID);
+        if (!root) {
+          injectReact(ROOT_ID);
+        }
+    }
+});

@@ -7,7 +7,7 @@ interface Manifest {
     version: string
     description: string
     action: {
-        default_popup: string
+        default_title: string
     }
     options_ui: {
         page: string
@@ -54,7 +54,7 @@ const createBaseManifest = async (): Promise<Manifest> => {
             version: pkg.version,
             description: pkg.description ?? 'GIVE ME A DESCRIPTION',
             action: {
-                default_popup: './src/scripts/popup/popup.html'
+                default_title: 'Click Me'
             },
             options_ui: {
                 page: './src/scripts/options/options.html',

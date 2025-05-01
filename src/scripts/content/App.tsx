@@ -77,7 +77,12 @@ const App = () => {
                             className="absolute -top-3 -left-3 bg-orange-400 rounded-full w-6 h-6 hidden group-hover:flex items-center justify-center"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                setIsHidden(true) // Hide permanently
+                                const ROOT_ID = 'leetcopilot-root'; // Define the ROOT_ID variable
+                                const root = document.getElementById(ROOT_ID);
+                                if (root) {
+                                    root.remove(); // Remove the root element from the DOM
+                                    console.log('[LeetCopilot] Root element removed');
+                                }
                             }}
                         >
                             <span className="text-white text-xs font-bold">✕</span>
