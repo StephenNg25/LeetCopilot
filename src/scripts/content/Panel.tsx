@@ -90,7 +90,16 @@ const Panel = ({ onClose }: { onClose: () => void }) => {
   const currentLanguage = languages[languageIndex];
 
   return (
-    <div className="fixed top-0 right-0 h-full w-[620px] bg-white text-zinc-800 shadow-2xl z-[999999] border-l border-gray-200/50 flex flex-col font-sans p-5 gap-5 overflow-y-auto">
+    <div
+      className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl"
+      style={{
+        top: '10px',
+        right: '10px',
+        bottom: '20px',
+        width: '600px',
+        height: 'calc(100% - 40px)',
+      }}
+    >
       {/* Header + Close */}
       <div className="flex justify-between items-center mb-1 border-b border-gray-200 pb-1">
         <img
