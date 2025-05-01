@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Lock, BookOpen, CheckCircle2, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Lock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import { cn } from '@/utils/browser';
 
 const hintData = [
-  { percent: 10, text: 'This is an O(n^2) hint and weighs 10% of the problem. Do you want to use it?' },
-  { percent: 20, text: 'This is an O(n^2) hint and weighs 20% of the problem. Do you want to use it?' },
-  { percent: 30, text: 'This is an O(n) hint and weighs 30% of the problem. Do you want to use it?' },
-  { percent: 40, text: 'This is an O(n) hint and weighs 40% of the problem. Do you want to use it?' },
-  { percent: 100, text: 'This is the entire most optimized solution. Do you want to use it?' }
+  { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
+  { percent: 20, text: 'This is an O(n) approach hint and weighs 20% of the problem. Do you want to use it?' },
+  { percent: 30, text: 'This is an O(n^2) technical hint and weighs 30% of the problem. Do you want to use it?' },
+  { percent: 40, text: 'This is an O(n) technical hint and weighs 40% of the problem. Do you want to use it?' },
+  { percent: 100, text: 'This is the entire most optimized solution. Do you want to see it?' }
 ];
 
 const tabIcons: Record<string, JSX.Element> = {
@@ -44,8 +44,10 @@ const Panel = ({ onClose }: { onClose: () => void }) => {
         </button>
       </div>
 
+      <div className="border-t border-gray-200" />
+
       {/* Utility Tabs with Icons in a Box */}
-      <div className="rounded-xl bg-gray-50 p-2 shadow-sm border border-gray-200/30 mb-0">
+      <div className="rounded-xl bg-gray-50 p-2 shadow-sm border border-gray-200/30">
         <div className="flex justify-center space-x-2">
           {['Problem', 'Solved', 'Favourite'].map(item => (
             <button
@@ -68,24 +70,24 @@ const Panel = ({ onClose }: { onClose: () => void }) => {
       {/* Problem Title */}
       <p className="text-sm font-medium text-left">1. Two Sum – <span className="text-green-500 font-medium">Easy</span></p>
 
-      {/* Language Slide Box */}
-      <div className="rounded-xl bg-gray-50 p-3 shadow-sm border border-gray-200/30 flex items-center justify-between gap-3">
+      {/* Language Slider Styled like Toggle Pill */}
+      <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-between">
         <button
           onClick={scrollLeft}
           disabled={languageIndex === 0}
           className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30"
         >
-          <ChevronLeft size={20} />
+          ◀
         </button>
-        <div className="flex flex-1 justify-center">
+        <div className="flex w-full justify-center">
           {languages.map((lang, i) => (
             <button
               key={lang}
               className={cn(
-                "py-2 px-4 text-sm rounded-lg transition-all duration-200 w-24",
+                "text-sm px-6 py-2 rounded-full font-medium transition-all duration-200",
                 i === languageIndex 
-                  ? "bg-white border border-gray-200 text-zinc-800 font-medium shadow-sm" 
-                  : "bg-gray-50 text-gray-600 hover:bg-white/70 hidden"
+                  ? "bg-white text-orange-500 shadow-md" 
+                  : "text-gray-500"
               )}
             >
               {lang}
@@ -97,39 +99,37 @@ const Panel = ({ onClose }: { onClose: () => void }) => {
           disabled={languageIndex === languages.length - 1}
           className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30"
         >
-          <ChevronRight size={20} />
+          ▶
         </button>
       </div>
 
       {/* Main Panel */}
       <div className="flex flex-1 gap-4 overflow-hidden">
         {/* Sidebar Hints */}
-        <div className="flex flex-col w-[100px] h-full">
-          <div className="flex flex-col h-full justify-between gap-0">
-            {hintData.map(({ percent }) => (
-              <button
-                key={percent}
-                onClick={() => setActiveHint(percent)}
-                className={cn(
-                  "flex flex-col items-center justify-center py-4 px-2 transition-all duration-200",
-                  "hover:bg-gray-50 border",
-                  activeHint === percent
-                    ? "border-orange-400/80 bg-white text-orange-500 shadow-sm rounded-lg"
-                    : "border-gray-100 text-gray-500"
-                )}
-              >
-                <Lock size={18} className="mb-1.5" />
-                <span className="text-xs font-medium">{percent}%</span>
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-rows-[repeat(auto-fit,minmax(0,1fr))] w-[100px] h-full gap-[1px]">
+          {hintData.map(({ percent }) => (
+            <button
+              key={percent}
+              onClick={() => setActiveHint(percent)}
+              className={cn(
+                "flex flex-col items-center justify-center py-6 px-2 transition-all duration-200",
+                "hover:bg-gray-50 border",
+                activeHint === percent
+                  ? "border-orange-400/80 bg-white text-orange-500 shadow-sm rounded-lg"
+                  : "border-gray-100 text-gray-500"
+              )}
+            >
+              <Lock size={18} className="mb-1.5" />
+              <span className="text-xs font-medium">{percent}%</span>
+            </button>
+          ))}
         </div>
 
         {/* Hint Card */}
         <div className="flex flex-col flex-1 rounded-xl bg-white p-5 shadow-md border border-gray-200/30 justify-between">
           <div className="flex-1 flex flex-col justify-between">
             <p className="text-base text-zinc-700 leading-relaxed mb-3">{hintData.find(h => h.percent === activeHint)?.text || ''}</p>
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center mb-3">
               <button className="px-8 py-2.5 bg-orange-400 text-white font-medium text-sm rounded-lg transition-all duration-200 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-400/30 shadow-sm hover:shadow-md flex items-center justify-center">
                 UNLOCK
               </button>
