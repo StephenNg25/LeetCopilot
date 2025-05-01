@@ -1,110 +1,96 @@
 import React, { useEffect, useRef, useState } from 'react'
-import Panel from './Panel' // <- NEW
+import Panel from './Panel'
 import LCPLogo from '@/assets/LCP.png'
 
 const App = () => {
-    const [isPanelOpen, setIsPanelOpen] = useState(false)
-    const [isHidden, setIsHidden] = useState(false) // Hidden widget 
-    const [positionY, setPositionY] = useState(300) // Initial vertical position
-    const startY = useRef(0) // Remember initial Y when drag starts
-    const dragRef = useRef<HTMLDivElement | null>(null)
-    const isDragging = useRef(false)
-    const offsetY = useRef(0)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [isHidden, setIsHidden] = useState(false)
+  const [positionY, setPositionY] = useState(300)
+  const startY = useRef(0)
+  const dragRef = useRef<HTMLDivElement | null>(null)
+  const isDragging = useRef(false)
+  const offsetY = useRef(0)
 
-    const togglePanel = () => setIsPanelOpen(prev => !prev)
-    
+  const togglePanel = () => setIsPanelOpen(prev => !prev)
 
-    // Handle dragging
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!isDragging.current) return
-            setPositionY(e.clientY - offsetY.current)
-        }
-
-        const handleMouseUp = () => {
-            isDragging.current = false
-        }
-        
-        window.addEventListener('mousemove', handleMouseMove)
-        window.addEventListener('mouseup', handleMouseUp)
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove)
-            window.removeEventListener('mouseup', handleMouseUp)
-        }
-    }, [])
-
-    const startDragging = (e: React.MouseEvent) => {
-        isDragging.current = true
-        offsetY.current = e.clientY - (dragRef.current?.getBoundingClientRect().top || 0)
-        startY.current = e.clientY
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return
+      setPositionY(e.clientY - offsetY.current)
     }
 
-    return (
-        <>
-            {/* Floating Button */}
-            {!isPanelOpen && !isHidden && (
-                <div
-                    ref={dragRef}
-                    onMouseDown={startDragging}
-                    className="fixed z-[999999] cursor-pointer"
-                    style={{ top: `${positionY}px`, right: '-26px' }}
-                >
-                    <div
-                        className="relative flex items-center group transition-all duration-300 ease-in-out hover:scale-[1.08] hover:left-[-16px]"
-                        style={{
-                            height: '72px',
-                            borderTopLeftRadius: '10px',
-                            borderBottomLeftRadius: '10px',
-                            backgroundColor: '#FFE0B2',
-                            color: '#000',
-                            padding: '0 40px 0 28px',
-                            fontWeight: 600,
-                            boxShadow: '0 0 8px rgba(0,0,0,0.25)',
-                        }}
-                        onClick={(e) => {
-                            const dragDistance = Math.abs(startY.current - e.clientY)
-                            if (dragDistance < 5) {
-                                // Small movement = click
-                                togglePanel()
-                            }
-                        }}
-                        
-                    >
-                        <img
-                            src={LCPLogo}
-                            alt="Hints"
-                            className="h-12 w-auto mr-2 pointer-events-none"
-                        />
+    const handleMouseUp = () => {
+      isDragging.current = false
+    }
 
-                        {/* Hoverable X (no hover loss) */}
-                        <div
-                            className="absolute -top-3 -left-3 bg-orange-400 rounded-full w-6 h-6 hidden group-hover:flex items-center justify-center"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                const ROOT_ID = 'leetcopilot-root'; // Define the ROOT_ID variable
-                                const root = document.getElementById(ROOT_ID);
-                                if (root) {
-                                    root.remove(); // Remove the root element from the DOM
-                                    console.log('[LeetCopilot] Root element removed');
-                                }
-                            }}
-                        >
-                            <span className="text-white text-xs font-bold">✕</span>
-                        </div>
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
+  const startDragging = (e: React.MouseEvent) => {
+    isDragging.current = true
+    offsetY.current = e.clientY - (dragRef.current?.getBoundingClientRect().top || 0)
+    startY.current = e.clientY
+  }
+
+  return (
+    <>
+      {!isPanelOpen && !isHidden && (
+        <div
+          ref={dragRef}
+          onMouseDown={startDragging}
+          className="fixed z-[999999] cursor-pointer group"
+          style={{ top: `${positionY}px`, right: '0px' }}
+        >
+            {/* Absolute Close Button */}
+            <div
+                className="absolute -top-2 -left-2 bg-orange-500 rounded-full w-6 h-6 hidden group-hover:flex items-center justify-center shadow-lg z-50"
+                onClick={(e) => {
+                e.stopPropagation()
+                const root = document.getElementById('leetcopilot-root')
+                if (root) root.remove()
+                }}
+            >
+                <span className="text-white text-sm font-bold leading-none">✕</span>
+            </div>
+            {/* Outer Container */}
+            <div className="relative flex items-center transition-all duration-300 ease-in-out group-hover:w-[110px] w-[70px] h-[70px] overflow-hidden shadow-lg">
+                {/* Main Body (rounded only left) */}
+                <div className="flex items-center h-full bg-orange-100 rounded-l-xl">
+                    {/* Logo Section */}
+                    <div
+                    className="flex items-center justify-center w-[70px] h-[70px]"
+                    onClick={(e) => {
+                        const dragDistance = Math.abs(startY.current - e.clientY)
+                        if (dragDistance < 5) togglePanel()
+                    }}
+                    >
+                    <img src={LCPLogo} alt="LCP" className="h-9 w-auto pointer-events-none" />
                     </div>
                 </div>
-            )}
 
+                {/* Slide-out Segment (no border radius at all) */}
+                <div className="flex items-center justify-center w-[30px] h-full bg-orange-300 group-hover:flex hidden rounded-none">
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="w-1 h-1 bg-white rounded-full" />
+                    ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
-
-
-            {/* Sidebar Panel */}
-            {isPanelOpen && (
-                <Panel onClose={togglePanel} />
-            )}
-        </>
-    )
+      {isPanelOpen && (
+        <Panel onClose={togglePanel} />
+      )}
+    </>
+  )
 }
 
 export default App
