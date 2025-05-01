@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Panel from './Panel' // <- NEW
+import LCPLogo from '@/assets/LCP.png'
 
 const App = () => {
     const [isPanelOpen, setIsPanelOpen] = useState(false)
@@ -47,7 +48,7 @@ const App = () => {
                     ref={dragRef}
                     onMouseDown={startDragging}
                     className="fixed z-[999999] cursor-pointer"
-                    style={{ top: `${positionY}px`, right: '-7px' }}
+                    style={{ top: `${positionY}px`, right: '-26px' }}
                 >
                     <div
                         className="relative flex items-center group transition-all duration-300 ease-in-out hover:scale-[1.08] hover:left-[-16px]"
@@ -70,7 +71,11 @@ const App = () => {
                         }}
                         
                     >
-                        <span className="text-base">💡 Hints</span>
+                        <img
+                            src={LCPLogo}
+                            alt="Hints"
+                            className="h-12 w-auto mr-2 pointer-events-none"
+                        />
 
                         {/* Hoverable X (no hover loss) */}
                         <div
