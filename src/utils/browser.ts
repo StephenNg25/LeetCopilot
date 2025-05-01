@@ -1,4 +1,10 @@
 import { browser } from 'webextension-polyfill-ts'
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 export const isLeetCodeProblemPage = () => {
     return /^https:\/\/leetcode\.com\/problems\/[^/]+/.test(window.location.href)
@@ -27,3 +33,4 @@ export const sendMessageToContentScript = async (message: any): Promise<any> => 
         return null
     }
 }
+
