@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import { cn } from '@/utils/browser';
+import WLCPLogo from '@/assets/LCP-W.png';
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -90,8 +91,12 @@ const tabIcons: Record<string, JSX.Element> = {
     return (
       <div className="fixed top-0 right-0 h-full w-[620px] bg-white text-zinc-800 shadow-2xl z-[999999] border-l border-gray-200/50 flex flex-col font-sans p-5 gap-5 overflow-y-auto">
         {/* Header + Close */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-zinc-800">LeetCopilot</h2>
+        <div className="flex justify-between items-center mb-1 border-b border-gray-200">
+        <img
+          src={WLCPLogo}
+          alt="LeetCopilot"
+          className="h-12 w-auto object-contain m-0 p-0 pointer-events-none"
+        />
           <button 
             onClick={onClose} 
             className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-8 w-8 rounded-full flex items-center justify-center hover:bg-gray-100"
@@ -99,8 +104,6 @@ const tabIcons: Record<string, JSX.Element> = {
             ✕
           </button>
         </div>
-  
-        <div className="border-t border-gray-200" />
   
         {/* Utility Tabs with Icons in a Box */}
         <div className="rounded-xl bg-gray-50 p-2 shadow-sm border border-gray-200/30">
