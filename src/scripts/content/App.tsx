@@ -49,7 +49,7 @@ const App = () => {
         >
             {/* Absolute Close Button */}
             <div
-                className="absolute -top-2 -left-2 bg-orange-500 rounded-full w-6 h-6 hidden group-hover:flex items-center justify-center shadow-lg z-50"
+                className="absolute -top-2 -left-2 bg-orange-400 hover:bg-orange-500 rounded-full w-5 h-5 hidden group-hover:flex items-center justify-center shadow-lg z-50 transition-colors duration-200"
                 onClick={(e) => {
                 e.stopPropagation()
                 const root = document.getElementById('leetcopilot-root')
@@ -59,12 +59,12 @@ const App = () => {
                 <span className="text-white text-sm font-bold leading-none">✕</span>
             </div>
             {/* Outer Container */}
-            <div className="relative flex items-center transition-all duration-300 ease-in-out group-hover:w-[110px] w-[70px] h-[70px] overflow-hidden shadow-lg">
+            <div className="relative flex items-center transition-all duration-300 ease-in-out group-hover:w-[85px] w-[60px] h-[60px] overflow-hidden shadow-lg">
                 {/* Main Body (rounded only left) */}
-                <div className="flex items-center h-full bg-orange-100 rounded-l-xl">
+                <div className="flex items-center h-full bg-orange-100 rounded-l-md">
                     {/* Logo Section */}
                     <div
-                    className="flex items-center justify-center w-[70px] h-[70px]"
+                    className="flex items-center justify-center w-[60px] h-[60px]"
                     onClick={(e) => {
                         const dragDistance = Math.abs(startY.current - e.clientY)
                         if (dragDistance < 5) togglePanel()
@@ -75,8 +75,8 @@ const App = () => {
                 </div>
 
                 {/* Slide-out Segment (no border radius at all) */}
-                <div className="flex items-center justify-center w-[30px] h-full bg-orange-300 group-hover:flex hidden rounded-none">
-                    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                <div className="absolute top-0 right-0 flex items-center justify-center w-[25px] h-full bg-orange-300 hover:bg-orange-400 group-hover:flex hidden rounded-none transition-colors duration-200 cursor-grab">
+                    <div className="grid grid-cols-2 gap-x-[2px] gap-y-[2px]">
                     {[...Array(6)].map((_, i) => (
                         <div key={i} className="w-1 h-1 bg-white rounded-full" />
                     ))}
