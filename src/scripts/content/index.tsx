@@ -8,10 +8,10 @@ const isProduction: boolean = process.env.NODE_ENV === 'production'
 const ROOT_ID = 'leetcopilot-root'
 
 const injectReact = (rootId: string): void => {
-    if (!isLeetCodeProblemPage()) {
-        console.log('❌ Not a LeetCode problem page')
-        return
-    }
+    if (!isLeetCodeProblemPage()) return
+
+    // Prevent duplicate injection
+    if (document.getElementById(rootId)) return
 
     console.log('✅ Injecting LeetCopilot UI...')
 
@@ -20,16 +20,15 @@ const injectReact = (rootId: string): void => {
     container.style.position = 'fixed'
     container.style.top = '0'
     container.style.right = '0'
-    container.style.zIndex = '2147483666' // max z-index
-    container.style.pointerEvents = 'none' // Let page interactions through
+    container.style.zIndex = '2147483666'
+    container.style.pointerEvents = 'none'
     document.body.appendChild(container)
 
-    const target: ShadowRoot | HTMLElement = isProduction
+    const target = isProduction
         ? container.attachShadow({ mode: 'open' })
         : container
 
     const root = createRoot(target)
-
     root.render(
         <React.StrictMode>
             {isProduction && <style>{styles.toString()}</style>}
@@ -40,4 +39,22 @@ const injectReact = (rootId: string): void => {
     )
 }
 
+// ✅ First injection when the script loads
 injectReact(ROOT_ID)
+
+// ✅ Monitor SPA navigation (LeetCode doesn't fully reload pages)
+let lastPath = window.location.pathname
+setInterval(() => {
+    const currentPath = window.location.pathname
+    if (currentPath !== lastPath) {
+        lastPath = currentPath
+        console.log('🔁 SPA navigation detected:', currentPath)
+
+        // Clean up old panel if needed
+        const oldRoot = document.getElementById(ROOT_ID)
+        if (oldRoot) oldRoot.remove()
+
+        // Re-inject panel on new problem page
+        injectReact(ROOT_ID)
+    }
+}, 800)
