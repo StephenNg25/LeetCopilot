@@ -100,45 +100,71 @@ const Panel = ({ onClose }: { onClose: () => void }) => {
         height: 'calc(100% - 40px)',
       }}
     >
-      {/* Header + Close */}
-      <div className="flex justify-between items-center mb-1 border-b border-gray-200 pb-1">
-        <img
-          src={WLCPLogo}
-          alt="LeetCopilot"
-          className="h-10 w-auto object-contain m-0 p-0 pointer-events-none"
-        />
-        <button 
-          onClick={onClose} 
-          className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-8 w-8 rounded-full flex items-center justify-center hover:bg-gray-100"
-        >
-          ✕
-        </button>
-      </div>
+      {/* Header with Logo, Close Button, and Tabs all together */}
+      <div className="border-b border-gray-200 pb-3">
+        {/* Top row: Logo and X */}
+        <div className="flex justify-between items-start mb-2">
+          <img
+            src={WLCPLogo}
+            alt="LeetCopilot"
+            className="h-10 w-auto object-contain pointer-events-none"
+          />
+          <button 
+            onClick={onClose} 
+            className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100"
+          >
+            ✕
+          </button>
+        </div>
 
-      {/* Utility Tabs with Icons in a Box */}
-      <div className="rounded-xl bg-gray-50 p-2 shadow-sm border border-gray-200/30">
-        <div className="flex justify-center space-x-2">
-          {['Problem', 'Solved', 'Favourite'].map(item => (
-            <button
-              key={item}
-              onClick={() => setTab(item)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 flex-1 justify-center",
-                tab === item
-                  ? "bg-white text-orange-500 border border-gray-200 shadow-sm"
-                  : "bg-transparent text-gray-600 hover:bg-white/60"
-              )}
-            >
-              {tabIcons[item]}
-              {item}
-            </button>
-          ))}
+        {/* Tabs directly below the logo row */}
+        <div className="rounded-xl bg-gray-50 p-1 shadow-sm border border-gray-200/30">
+          <div className="flex justify-center space-x-2">
+            {['Problem', 'Solved', 'Favourite'].map(item => (
+              <button
+                key={item}
+                onClick={() => setTab(item)}
+                className={cn(
+                  "flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex-1 justify-center",
+                  tab === item
+                    ? "bg-white text-orange-500 border border-gray-200 shadow-sm"
+                    : "bg-transparent text-gray-600 hover:bg-white/60"
+                )}
+              >
+                {tabIcons[item]}
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
 
       {/* Problem Title */}
       <p className="text-base font-medium text-left">
         {problemTitle} – <span className={cn("font-semibold", getDifficultyColor(difficulty))}>{difficulty}</span>
+        {/* Thought Process Evaluation Box */}
+        <div className="border border-gray-300 rounded-md p-3 mt-2 shadow-sm bg-white relative">
+          {/* Top Controls */}
+          <div className="flex justify-between items-center mb-2 text-sm font-medium">
+            {/* Left Controls */}
+            <div className="flex space-x-2">
+              <button className="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 transition">DELETE</button>
+              <button className="px-2 py-1 bg-blue-100 text-blue-500 rounded hover:bg-blue-200 transition">EVALUATE</button>
+            </div>
+            {/* Right Info */}
+            <div className="text-gray-600">
+              Time Complexity: <span className="font-semibold">N/A</span> &nbsp; Ideal: <span className="font-semibold">0/10</span>
+            </div>
+          </div>
+
+          {/* Input Area */}
+          <textarea
+            placeholder="Tell us your thought of approaching?...."
+            className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
+          />
+        </div>
+
       </p>
 
       {/* Language Slider Styled like Toggle Pill */}
