@@ -51,7 +51,7 @@ const Panel = ({ onClose }) => {
   const [difficulty, setDifficulty] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Hi! How would you like me to help with this hint? hkashlgkjahskldjghlakjsdhglakjshdglkjahsldgkjhalksdjhglkjshgdl' }
+    { role: 'bot', text: 'Hi! How would you like me to help with this hint? lskgjlskdjglsjglskjglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjlsjglskdjglksjlgkjskdg' }
   ]);
   const [userInput, setUserInput] = useState('');
   const chatEndRef = useRef(null);
@@ -164,7 +164,7 @@ const Panel = ({ onClose }) => {
       </div>
 
       <div className="flex flex-1 gap-4 overflow-hidden">
-        <div className="flex flex-col w-[100px] h-full gap-1.5">
+        <div className="flex flex-col w-[70px] h-full gap-1.5">
           {hintData.map(({ percent }) => (
             <button key={percent} onClick={() => setActiveHint(percent)} className={cn("flex flex-col items-center justify-center flex-1 px-2 transition-all duration-200", "hover:bg-gray-50 border", activeHint === percent ? "border-orange-400/80 bg-white text-orange-500 shadow-sm rounded-lg" : "border-gray-100 text-gray-500")}> <Lock size={18} className="mb-1.5" /><span className="text-sm font-medium">{percent}%</span></button>
           ))}
@@ -180,12 +180,12 @@ const Panel = ({ onClose }) => {
                       {msg.role === 'bot' ? (
                         <>
                           <div className="h-6 w-6 rounded-full bg-cyan-100 flex items-center justify-center text-xs font-bold text-cyan-800">🤖</div>
-                          <div className="text-sm text-gray-700 max-w-[75%] break-words whitespace-pre-wrap">
-                            {msg.text}
-                          </div>
+                          <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap break-all">{msg.text}</div>
                         </>
                       ) : (
-                        <div className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-zinc-900 max-w-[70%]">{msg.text}</div>
+                        <div className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-zinc-900 max-w-[70%] break-words whitespace-pre-wrap break-all">
+                          {msg.text}
+                        </div>
                       )}
                     </div>
                   ))}
