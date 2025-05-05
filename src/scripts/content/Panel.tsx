@@ -293,12 +293,15 @@ const Panel = ({ onClose }) => {
       </div>
       {isExpanded && (
         <ExpandedHintModal
-          onClose={() => setIsExpanded(false)}
-          hintMessages={hintMessages}
-          activeHint={activeHint}
-          userInput={userInput}
-          setUserInput={setUserInput}
-          handleSendMessage={handleSendMessage}
+        onClose={() => setIsExpanded(false)}
+        hintMessages={hintMessages}
+        activeHint={activeHint}
+        setActiveHint={setActiveHint}  // <== Add this
+        unlockedHints={unlockedHints}  // <== Add this
+        handleUnlockHint={handleUnlockHint}  // <== Add this
+        userInput={userInput}
+        setUserInput={setUserInput}
+        handleSendMessage={handleSendMessage}
         />
       )}
     </div>
