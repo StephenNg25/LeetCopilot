@@ -1,3 +1,5 @@
+import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
+import { fetchHintFromGroq } from '@/utils/fetchhint';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import { cn } from '@/utils/browser';
@@ -19,30 +21,6 @@ const tabIcons = {
 
 const languages = ['Python', 'C++', 'Java'];
 
-async function fetchProblemData(titleSlug) {
-  const query = `
-    query questionData($titleSlug: String!) {
-      question(titleSlug: $titleSlug) {
-        questionFrontendId
-        title
-        difficulty
-        content
-      }
-    }
-  `;
-
-  const variables = { titleSlug };
-
-  const response = await fetch('https://leetcode.com/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables })
-  });
-
-  const data = await response.json();
-  return data.data.question;
-}
-
 const Panel = ({ onClose }) => {
   const [activeHint, setActiveHint] = useState(10);
   const [tab, setTab] = useState('Problem');
@@ -50,9 +28,8 @@ const Panel = ({ onClose }) => {
   const [problemTitle, setProblemTitle] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Hi! How would you like me to help with this hint? lskgjlskdjglsjglskjglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjljglsjlgjslkgjlskgjlsjglsjlgkjslkgjlsjglskdjglksjlgkjskdg' }
-  ]);
+  const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({});
+
   const [userInput, setUserInput] = useState('');
   const chatEndRef = useRef(null);
 
@@ -76,7 +53,7 @@ const Panel = ({ onClose }) => {
     const titleSlug = window.location.pathname.split('/')[2];
     const getProblemInfo = async () => {
       try {
-        const problem = await fetchProblemData(titleSlug);
+        const problem = await fetchProblemTitle(titleSlug);
         setProblemTitle(`${problem.questionFrontendId}. ${problem.title}`);
         setDifficulty(problem.difficulty);
       } catch (err) {
@@ -88,7 +65,7 @@ const Panel = ({ onClose }) => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [hintMessages, activeHint]);
 
   const currentLanguage = languages[languageIndex];
 
@@ -100,7 +77,10 @@ const Panel = ({ onClose }) => {
 
     sendingRef.current = true;
 
-    setMessages(prev => [...prev, { role: 'user', text: trimmed }]);
+    setHintMessages(prev => ({
+      ...prev,
+      [activeHint]: [...(prev[activeHint] || []), { role: 'user', text: trimmed }]
+    }));
     setUserInput('');
 
     // Reset the lock on next tick
@@ -109,6 +89,35 @@ const Panel = ({ onClose }) => {
     }, 50);
   }, [userInput]);
 
+  // Formatting Hint Prompt Output
+  const handleUnlockHint = async (percent: number) => {
+    try {
+      const titleSlug = window.location.pathname.split('/')[2];
+      console.log('titleSlug:', titleSlug);
+      const problemContent = await fetchProblemContent(titleSlug);
+      console.log('problemContent:', problemContent);
+      if (!problemContent || !problemContent.content) {
+        console.error('Failed to fetch problem content or content is missing');
+        return;
+      }
+      const hintMessage = await fetchHintFromGroq(percent, problemContent.content);
+      setHintMessages(prev => ({
+        ...prev,
+        [percent]: [{ role: 'bot', text: hintMessage }]
+      }));
+      const newUnlocked = new Set(unlockedHints);
+      newUnlocked.add(percent);
+      setUnlockedHints(newUnlocked);
+      setIsUnlocked(true);
+      const unlockedArray = Array.from(newUnlocked).map(Number);
+      const total = unlockedArray.reduce((sum, hint) => sum + hint, 0);
+      setTotalAssistance(Math.min(100, total));
+    } catch (error) {
+      console.error('Failed to unlock hint:', error);
+    }
+};
+  
+  
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -195,7 +204,8 @@ const Panel = ({ onClose }) => {
             {isHintUnlocked ? (
               <div className="flex flex-col flex-1 gap-3 overflow-hidden">
                 <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 min-h-0">
-                  {messages.map((msg, idx) => (
+                  {(hintMessages[activeHint] || []).map((msg, idx) => (
+                  //{hintMessages[activeHint]?.map((msg, idx) => (
                     <div key={idx} className={msg.role === 'bot' ? 'flex items-start gap-2' : 'flex justify-end'}>
                       {msg.role === 'bot' ? (
                         <>
@@ -243,16 +253,7 @@ const Panel = ({ onClose }) => {
                   <span className="text-sm text-gray-400">Language: {currentLanguage}</span>
                 </p>
                 <div className="flex justify-center mb-3">
-                  <button onClick={() => {
-                            const newUnlocked = new Set(unlockedHints);
-                            newUnlocked.add(activeHint);
-                            setUnlockedHints(newUnlocked);
-                            setIsUnlocked(true);
-                            //Combined percentage of unlocked hints display 100% after exceeding 100!
-                            const unlockedArray = Array.from(newUnlocked).map(Number);
-                            const total = unlockedArray.reduce((sum, hint) => sum + hint, 0);
-                            setTotalAssistance(Math.min(100, total));
-                          }}
+                  <button onClick={() => handleUnlockHint(activeHint)}
                           className="px-8 py-2.5 bg-orange-400 text-white font-medium text-base rounded-lg
                                      transition-all duration-200 hover:bg-orange-500 focus:outline-none focus:ring-2
                                      focus:ring-orange-400/30 shadow-sm hover:shadow-md flex items-center justify-center">
