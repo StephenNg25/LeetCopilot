@@ -1,9 +1,11 @@
 import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
+import { cn } from '@/utils/browser';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
-import { cn } from '@/utils/browser';
 import WLCPLogo from '@/assets/LCP-W.png';
+import ExpandIcon from '@/assets/expand.png';
+import ExpandedHintModal from './ExpandedHintChat';
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -27,9 +29,9 @@ const Panel = ({ onClose }) => {
   const [languageIndex, setLanguageIndex] = useState(0);
   const [problemTitle, setProblemTitle] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [, setIsUnlocked] = useState(false);
   const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({});
-
+  const [isExpanded, setIsExpanded] = useState(false);
   const [userInput, setUserInput] = useState('');
   const chatEndRef = useRef(null);
 
@@ -83,24 +85,18 @@ const Panel = ({ onClose }) => {
     }));
     setUserInput('');
 
-    // Reset the lock on next tick
     setTimeout(() => {
       sendingRef.current = false;
     }, 50);
   }, [userInput]);
 
-  // Formatting Hint Prompt Output
   const handleUnlockHint = async (percent: number) => {
     try {
       const titleSlug = window.location.pathname.split('/')[2];
-      console.log('titleSlug:', titleSlug);
       const problemContent = await fetchProblemContent(titleSlug);
-      console.log('problemContent:', problemContent);
-      if (!problemContent || !problemContent.content) {
-        console.error('Failed to fetch problem content or content is missing');
-        return;
-      }
+      if (!problemContent || !problemContent.content) return;
       const hintMessage = await fetchHintFromGroq(percent, problemContent.content);
+
       setHintMessages(prev => ({
         ...prev,
         [percent]: [{ role: 'bot', text: hintMessage }]
@@ -115,7 +111,13 @@ const Panel = ({ onClose }) => {
     } catch (error) {
       console.error('Failed to unlock hint:', error);
     }
-};
+  };
+
+  useEffect(() => {
+    document.body.style.overflow = isExpanded ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isExpanded]);
+
   
   
   return (
@@ -210,7 +212,7 @@ const Panel = ({ onClose }) => {
                       {msg.role === 'bot' ? (
                         <>
                           <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
-                          <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap break-all">{msg.text}</div>
+                          <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap">{msg.text}</div>
                         </>
                       ) : (
                         <div className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-zinc-900 max-w-[70%] break-words whitespace-pre-wrap break-all">
@@ -237,6 +239,22 @@ const Panel = ({ onClose }) => {
                       }
                     }}
                   />
+                  
+                  {/* Expand Icon */}
+                  <button
+                    title="Expand"
+                    onClick={() => setIsExpanded(true)} // Open modal on click
+                    className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:opacity-80 transition"
+                  >
+                    <img
+                      src={ExpandIcon}
+                      alt="Expand"
+                      className="w-5 h-5 object-contain"
+                    />
+                  </button>
+
+
+                  {/* Send Button */}
                   <button
                     onClick={() => {
                       handleSendMessage();
@@ -273,6 +291,16 @@ const Panel = ({ onClose }) => {
           </div>
         </div>
       </div>
+      {isExpanded && (
+        <ExpandedHintModal
+          onClose={() => setIsExpanded(false)}
+          hintMessages={hintMessages}
+          activeHint={activeHint}
+          userInput={userInput}
+          setUserInput={setUserInput}
+          handleSendMessage={handleSendMessage}
+        />
+      )}
     </div>
   );
 };
