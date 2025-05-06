@@ -17,7 +17,7 @@ const hintData = [
 
 const highlightTerms = (text) => {
     if (typeof text !== 'string') return text;
-    const terms = ['hash[- ]?table', 'array', 'stack', 'queue', 'linked list', 'binary tree', 'graph', 'DFS', 'BFS'];
+    const terms = ['hash[- ]?table','hash-based', 'array', 'stack', 'queue', 'linked lists?', 'binary tree', 'graph', 'DFS', 'BFS', 'iterative', 'recursive', 'brute-force'];
     const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
     return text.replace(regex, (match) => `<span class="text-orange-400 font-semibold">${match}</span>`);
 };
@@ -28,42 +28,54 @@ const components = {
     ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1 text-zinc-300">{children}</ol>,
     li: ({ children }) => <li className="text-sm">{children}</li>,
     strong: ({ children }) => <strong className="text-orange-400 font-semibold">{children}</strong>,
-    code({ inline, className, children }) {
-        const codeRef = useRef(null);
-        const language = className ? className.replace('language-', '') : 'plaintext';
-      
-        const copyToClipboard = () => {
-          if (codeRef.current) {
-            const text = codeRef.current.innerText;
-            navigator.clipboard.writeText(text);
-          }
-        };
-      
-        if (!inline) {
-          return (
-            <div className="my-4 border border-zinc-700 rounded-lg bg-zinc-800 group">
-              <div className="flex justify-between items-center px-4 py-2 bg-zinc-700 rounded-t-lg">
-                <span className="text-sm text-zinc-300">{language}</span>
-                <button
-                  onClick={copyToClipboard}
-                  className="text-zinc-300 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Copy size={16} />
-                </button>
-              </div>
-              <pre className="p-4 overflow-auto">
-                <code ref={codeRef} className={className}>
-                  {children}
-                </code>
-              </pre>
-            </div>
-          );
-        }      
+    code({ node, className, children, ...props }) {
+      console.log('Node:', node, 'Children:', children);
+      const codeRef = useRef(null);
+      const [copied, setCopied] = React.useState(false);
+  
+      const language = className
+        ? className.replace(/(^|\s)hljs(\s|$)/g, '').replace('language-', '').trim()
+        : 'plaintext';
+  
+      const copyToClipboard = () => {
+        if (codeRef.current) {
+          const text = codeRef.current.innerText;
+          navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      };
+  
+      // Check if children is an array (block code) or string (inline code)
+      const isBlock = Array.isArray(children) && children.length > 0;
+  
+      if (isBlock) {
         return (
-            <span className="bg-orange-400/10 text-orange-300 font-mono text-sm px-1.5 py-0.5 rounded">
-            {children}
-            </span>
+          <div className="my-4 border border-zinc-700 rounded-lg bg-zinc-800 group">
+            <div className="flex justify-between items-center px-4 py-2 bg-zinc-700 rounded-t-lg">
+              <span className="text-sm text-zinc-300">{language}</span>
+              <button
+                onClick={copyToClipboard}
+                className="flex items-center gap-1 text-zinc-300 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                <span className="text-sm">{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+            <pre className="p-4 overflow-auto">
+              <code ref={codeRef} className={className} {...props}>
+                {children}
+              </code>
+            </pre>
+          </div>
         );
+      }
+  
+      return (
+        <span className="bg-orange-400/10 text-orange-300 font-mono text-sm px-1.5 py-0.5 rounded">
+          {children}
+        </span>
+      );
     },
 };
 
@@ -88,7 +100,7 @@ const ExpandedHintModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[1000000]">
-      <div className="bg-zinc-900 text-white rounded-xl shadow-2xl p-5 w-[70vw] h-[70vh] flex relative">
+      <div className="bg-zinc-900 text-white rounded-xl shadow-2xl p-5 w-[70vw] h-[90vh] flex relative">
         <div className="flex-1 flex flex-col w-full px-4">
             <div className="flex justify-between items-center mb-4">
                 <div className="flex gap-2 flex-wrap">
@@ -122,51 +134,73 @@ const ExpandedHintModal = ({
             <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-3">
                     {(hintMessages[activeHint] || []).map((msg, idx) => (
-                    <div key={idx} className={msg.role === 'bot' ? 'flex items-start gap-2' : 'flex justify-end'}>
-                        {msg.role === 'bot' ? (
-                        <>
-                            <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
-                            <div className="bg-zinc-800 text-sm px-4 py-2 rounded-lg max-w-[90%] prose prose-invert break-words whitespace-pre-wrap">
-                                <ReactMarkdown 
-                                    rehypePlugins={[rehypeRaw, rehypeHighlight]}
-                                    components={components}
-                                >
-                                    {highlightTerms(msg.text)}
-                                </ReactMarkdown>
+                        <div key={idx} className={msg.role === 'bot' ? 'flex items-start gap-2' : 'flex justify-end'}>
+                            {msg.role === 'bot' ? (
+                            <>
+                                <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
+                                <div className="bg-zinc-800 text-sm px-4 py-2 rounded-lg max-w-[90%] prose prose-invert break-words whitespace-pre-wrap">  
+                                    <ReactMarkdown 
+                                        rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                                        components={components}
+                                    >
+                                        {highlightTerms(msg.text)}
+                                    </ReactMarkdown>
+                                </div>
+                            </>
+                            ) : (
+                            <div className="bg-orange-500 text-sm px-4 py-2 rounded-lg max-w-[70%] break-words whitespace-pre-wrap text-white">
+                                {msg.text}
                             </div>
-                        </>
-                        ) : (
-                        <div className="bg-orange-500 text-sm px-4 py-2 rounded-lg max-w-[70%] break-words whitespace-pre-wrap text-white">
-                            {msg.text}
+                            )}
                         </div>
-                        )}
-                    </div>
                     ))}
                     <div ref={chatEndRef} />
                 </div>
 
                 <div className="mt-auto w-full flex items-center px-2 pb-1">
                     <div className="relative w-full">
-                        <textarea
+                    <textarea
                         value={userInput}
-                        onChange={(e) => setUserInput(e.target.value)}
+                        onChange={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            setUserInput(target.value);
+                            if (target.value.trim() === '') {
+                            target.style.height = '50px'; // Reset to initial height when empty
+                            } else {
+                            target.style.height = 'auto';
+                            target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
+                            }
+                        }}
+                        onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            if (target.value.trim() === '') {
+                            target.style.height = '50px'; // Reset to initial height when empty
+                            } else {
+                            target.style.height = 'auto';
+                            target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
+                            }
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             handleSendMessage();
                             setUserInput('');
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = '50px'; // Reset to initial height after sending
                             }
                         }}
                         placeholder="Message LeetCopilot..."
-                        rows={1}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-full text-sm px-4 py-2 pr-10 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        />
+                        className="w-full max-h-[160px] overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-xl text-md px-4 py-3 pr-7 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-transparent"
+                        style={{
+                            height: '50px', // Set the initial height
+                        }}
+                    />
                         <button
                         onClick={() => {
                             handleSendMessage();
                             setUserInput('');
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow"
                         >↑</button>
                     </div>
                     </div>
