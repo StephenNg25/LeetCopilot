@@ -1,13 +1,12 @@
 import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
+import { fetchConversation } from '@/utils/fetchconversation';
 import { cn } from '@/utils/browser';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import ExpandedHintModal from './ExpandedHintChat';
-import { fetchConversation } from '@/utils/fetchconversation'; // make sure this is imported
-
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -44,6 +43,7 @@ const Panel = ({
   const [languageIndex, setLanguageIndex] = useState(0);
   const [problemTitle, setProblemTitle] = useState('');
   const [difficulty, setDifficulty] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const chatEndRef = useRef(null);
 
   const isHintUnlocked = unlockedHints.has(activeHint);
@@ -80,42 +80,47 @@ const Panel = ({
 
   const currentLanguage = languages[languageIndex];
 
-  const sendingRef = useRef(false);
+  const handleSendMessage = async (input = userInput, hint = activeHint) => {
+    const trimmed = input.trim();
+    if (!trimmed || isSending) return;
 
-  const handleSendMessage = useCallback(async () => {
-    const trimmed = userInput.trim();
-    if (!trimmed || sendingRef.current) return;
-  
-    sendingRef.current = true;
-  
+    setIsSending(true);
+
     // Save user message into state
     const newUserMsg = { role: 'user', text: trimmed };
-    const prevMessages = hintMessages[activeHint] || [];
-  
+    const prevMessages = hintMessages[hint] || [];
+
+    // Update hintMessages with the user message
     setHintMessages(prev => ({
       ...prev,
-      [activeHint]: [...prevMessages, newUserMsg]
+      [hint]: [...prevMessages, newUserMsg]
     }));
-  
-    setUserInput('');
-  
+
+    // Clear input if called from Panel's textarea
+    if (input === userInput) {
+      setUserInput('');
+    }
+
     try {
-      // Call AI with base hint, message history, and latest input
-      const aiResponse = await fetchConversation([...prevMessages, newUserMsg], trimmed);
-  
-      // Save bot response
+      // Call AI with the updated conversation history (including the new user message)
+      const aiResponse = await fetchConversation(prevMessages, trimmed);
+
+      // Save assistant response
       setHintMessages(prev => ({
         ...prev,
-        [activeHint]: [...(prev[activeHint] || []), newUserMsg, { role: 'bot', text: aiResponse }]
+        [hint]: [...(prev[hint] || []), { role: 'assistant', text: aiResponse }]
       }));
     } catch (err) {
       console.error('[Chat] Failed to get AI response:', err);
+      // Add an error message to the chat
+      setHintMessages(prev => ({
+        ...prev,
+        [hint]: [...(prev[hint] || []), { role: 'assistant', text: 'Sorry, I encountered an error. Please try again.' }]
+      }));
+    } finally {
+      setIsSending(false);
     }
-  
-    setTimeout(() => {
-      sendingRef.current = false;
-    }, 50);
-  }, [userInput, activeHint, hintMessages]);
+  };
 
   const handleUnlockHint = async (percent: number) => {
     try {
@@ -127,8 +132,8 @@ const Panel = ({
       setHintMessages(prev => ({
         ...prev,
         [percent]: [
-          { role: 'bot', text: hintMessage },
-          { role: 'bot', text: "Ohh! Pardon me for not introducing myself (^-^'). I'm your AI assistant for the above hint. Feel free to ask me anything about it" }
+          { role: 'assistant', text: hintMessage },
+          { role: 'assistant', text: "Ohh! Pardon me for not introducing myself (^-^'). I'm your AI assistant for the above hint. Feel free to ask me anything about it" }
         ]
       }));
       const newUnlocked = new Set(unlockedHints);
@@ -234,8 +239,8 @@ const Panel = ({
               <div className="flex flex-col flex-1 gap-3 overflow-hidden">
                 <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 min-h-0">
                   {(hintMessages[activeHint] || []).map((msg, idx) => (
-                    <div key={idx} className={msg.role === 'bot' ? 'flex items-start gap-2' : 'flex justify-end'}>
-                      {msg.role === 'bot' ? (
+                    <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
+                      {msg.role === 'assistant' ? (
                         <>
                           <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
                           <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap">{msg.text}</div>

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Check, Lock as LockIcon, Copy } from 'lucide-react';
 import ShrinkIcon from '@/assets/shrink-D.png';
+import { fetchConversation } from '@/utils/fetchconversation';
 
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -29,7 +30,6 @@ const components = {
   li: ({ children }) => <li className="text-sm">{children}</li>,
   strong: ({ children }) => <strong className="text-orange-400 font-semibold">{children}</strong>,
   code({ node, className, children, ...props }) {
-    console.log('Node:', node, 'Children:', children);
     const codeRef = useRef(null);
     const [copied, setCopied] = React.useState(false);
 
@@ -107,6 +107,20 @@ const ExpandedHintModal = ({
     }
   };
 
+  const sendUserMessage = async () => {
+    if (!userInput.trim() || isLoading) return;
+
+    setIsLoading(true);
+
+    // Notify parent to add user message and handle the response
+    await handleSendMessage(userInput, activeHint);
+
+    // Clear input and reset textarea height
+    setUserInput('');
+    const textarea = document.querySelector('textarea');
+    if (textarea) textarea.style.height = '50px';
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1000000]">
       <div className="bg-zinc-900 text-white rounded-xl shadow-2xl p-5 w-[70vw] h-[90vh] flex relative">
@@ -143,8 +157,8 @@ const ExpandedHintModal = ({
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-3">
                   {(hintMessages[activeHint] || []).map((msg, idx) => (
-                    <div key={idx} className={msg.role === 'bot' ? 'flex items-start gap-2' : 'flex justify-end'}>
-                      {msg.role === 'bot' ? (
+                    <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
+                      {msg.role === 'assistant' ? (
                         <>
                           <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
                           <div className="bg-zinc-800 text-sm px-4 py-2 rounded-lg max-w-[90%] prose prose-invert break-words whitespace-pre-wrap">
@@ -192,8 +206,7 @@ const ExpandedHintModal = ({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          handleSendMessage();
-                          setUserInput('');
+                          sendUserMessage();
                           const target = e.target as HTMLTextAreaElement;
                           target.style.height = '50px';
                         }
@@ -204,8 +217,9 @@ const ExpandedHintModal = ({
                     />
                     <button
                       onClick={() => {
-                        handleSendMessage();
-                        setUserInput('');
+                        sendUserMessage();
+                        const textarea = document.querySelector('textarea');
+                        if (textarea) textarea.style.height = '50px';
                       }}
                       className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow"
                     >
@@ -219,13 +233,13 @@ const ExpandedHintModal = ({
             <div className="flex-1 flex items-center justify-center text-center">
               {isLoading ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80 z-10">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="relative w-12 h-12">
-                    <div className="custom-spinner w-full h-full rounded-full" />
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="relative w-12 h-12">
+                      <div className="custom-spinner w-full h-full rounded-full" />
+                    </div>
+                    <p className="text-white text-sm mt-4">LET IT COOK...</p>
                   </div>
-                  <p className="text-white text-sm mt-4">LET IT COOK...</p>
                 </div>
-              </div>              
               ) : (
                 <div className="text-center animate-pulse">
                   <p className="text-lg text-zinc-300 mb-4 transform transition-all duration-300 hover:scale-110 hover:text-orange-400">
