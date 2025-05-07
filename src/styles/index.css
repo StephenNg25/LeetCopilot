@@ -8,12 +8,26 @@
   }
   
   ::-webkit-scrollbar-track {
-    background: transparent; /* Removes the white background */
+    background: transparent; /* Removes its white background */
   }
   
   ::-webkit-scrollbar-thumb {
-    background-color: #6b7280; /* Tailwind gray-500 */
+    background-color: #6b7280; 
     border-radius: 10px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
+
+  /* Spinning Loading Screen */
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+.custom-spinner {
+    background: conic-gradient(from 180deg, rgba(249, 115, 22, 0.1) 10%, #f97316 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 100%);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 100%);
+    animation: spin 1s linear infinite;
+}
+  

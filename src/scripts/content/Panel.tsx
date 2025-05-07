@@ -6,6 +6,8 @@ import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import ExpandedHintModal from './ExpandedHintChat';
+import { fetchConversation } from '@/utils/fetchconversation'; // make sure this is imported
+
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -23,20 +25,27 @@ const tabIcons = {
 
 const languages = ['Python', 'C++', 'Java'];
 
-const Panel = ({ onClose }) => {
-  const [activeHint, setActiveHint] = useState(10);
+const Panel = ({
+  onClose,
+  activeHint,
+  setActiveHint,
+  hintMessages,
+  setHintMessages,
+  unlockedHints,
+  setUnlockedHints,
+  totalAssistance,
+  setTotalAssistance,
+  userInput,
+  setUserInput,
+  isExpanded,
+  setIsExpanded
+}) => {
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
   const [problemTitle, setProblemTitle] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  const [, setIsUnlocked] = useState(false);
-  const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({});
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [userInput, setUserInput] = useState('');
   const chatEndRef = useRef(null);
 
-  const [unlockedHints, setUnlockedHints] = useState(new Set());
-  const [totalAssistance, setTotalAssistance] = useState(0);
   const isHintUnlocked = unlockedHints.has(activeHint);
 
   const scrollLeft = () => setLanguageIndex(prev => Math.max(prev - 1, 0));
@@ -73,22 +82,40 @@ const Panel = ({ onClose }) => {
 
   const sendingRef = useRef(false);
 
-  const handleSendMessage = useCallback(() => {
+  const handleSendMessage = useCallback(async () => {
     const trimmed = userInput.trim();
     if (!trimmed || sendingRef.current) return;
-
+  
     sendingRef.current = true;
-
+  
+    // Save user message into state
+    const newUserMsg = { role: 'user', text: trimmed };
+    const prevMessages = hintMessages[activeHint] || [];
+  
     setHintMessages(prev => ({
       ...prev,
-      [activeHint]: [...(prev[activeHint] || []), { role: 'user', text: trimmed }]
+      [activeHint]: [...prevMessages, newUserMsg]
     }));
+  
     setUserInput('');
-
+  
+    try {
+      // Call AI with base hint, message history, and latest input
+      const aiResponse = await fetchConversation([...prevMessages, newUserMsg], trimmed);
+  
+      // Save bot response
+      setHintMessages(prev => ({
+        ...prev,
+        [activeHint]: [...(prev[activeHint] || []), newUserMsg, { role: 'bot', text: aiResponse }]
+      }));
+    } catch (err) {
+      console.error('[Chat] Failed to get AI response:', err);
+    }
+  
     setTimeout(() => {
       sendingRef.current = false;
     }, 50);
-  }, [userInput]);
+  }, [userInput, activeHint, hintMessages]);
 
   const handleUnlockHint = async (percent: number) => {
     try {
@@ -99,12 +126,14 @@ const Panel = ({ onClose }) => {
 
       setHintMessages(prev => ({
         ...prev,
-        [percent]: [{ role: 'bot', text: hintMessage }]
+        [percent]: [
+          { role: 'bot', text: hintMessage },
+          { role: 'bot', text: "Ohh! Pardon me for not introducing myself (^-^'). I'm your AI assistant for the above hint. Feel free to ask me anything about it" }
+        ]
       }));
       const newUnlocked = new Set(unlockedHints);
       newUnlocked.add(percent);
       setUnlockedHints(newUnlocked);
-      setIsUnlocked(true);
       const unlockedArray = Array.from(newUnlocked).map(Number);
       const total = unlockedArray.reduce((sum, hint) => sum + hint, 0);
       setTotalAssistance(Math.min(100, total));
@@ -118,8 +147,6 @@ const Panel = ({ onClose }) => {
     return () => { document.body.style.overflow = ''; };
   }, [isExpanded]);
 
-  
-  
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -207,7 +234,6 @@ const Panel = ({ onClose }) => {
               <div className="flex flex-col flex-1 gap-3 overflow-hidden">
                 <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 min-h-0">
                   {(hintMessages[activeHint] || []).map((msg, idx) => (
-                  //{hintMessages[activeHint]?.map((msg, idx) => (
                     <div key={idx} className={msg.role === 'bot' ? 'flex items-start gap-2' : 'flex justify-end'}>
                       {msg.role === 'bot' ? (
                         <>
@@ -235,7 +261,7 @@ const Panel = ({ onClose }) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage();
-                        setUserInput(""); // Clear the input after sending the message
+                        setUserInput("");
                       }
                     }}
                   />
@@ -243,7 +269,7 @@ const Panel = ({ onClose }) => {
                   {/* Expand Icon */}
                   <button
                     title="Expand"
-                    onClick={() => setIsExpanded(true)} // Open modal on click
+                    onClick={() => setIsExpanded(true)}
                     className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:opacity-80 transition"
                   >
                     <img
@@ -253,12 +279,11 @@ const Panel = ({ onClose }) => {
                     />
                   </button>
 
-
                   {/* Send Button */}
                   <button
                     onClick={() => {
                       handleSendMessage();
-                      setUserInput(""); // Clear the input after sending the message
+                      setUserInput("");
                     }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow"
                   >↑</button>
@@ -293,15 +318,15 @@ const Panel = ({ onClose }) => {
       </div>
       {isExpanded && (
         <ExpandedHintModal
-        onClose={() => setIsExpanded(false)}
-        hintMessages={hintMessages}
-        activeHint={activeHint}
-        setActiveHint={setActiveHint}  // <== Add this
-        unlockedHints={unlockedHints}  // <== Add this
-        handleUnlockHint={handleUnlockHint}  // <== Add this
-        userInput={userInput}
-        setUserInput={setUserInput}
-        handleSendMessage={handleSendMessage}
+          onClose={() => setIsExpanded(false)}
+          hintMessages={hintMessages}
+          activeHint={activeHint}
+          setActiveHint={setActiveHint}
+          unlockedHints={unlockedHints}
+          handleUnlockHint={handleUnlockHint}
+          userInput={userInput}
+          setUserInput={setUserInput}
+          handleSendMessage={handleSendMessage}
         />
       )}
     </div>

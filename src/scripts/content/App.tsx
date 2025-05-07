@@ -11,6 +11,14 @@ const App = () => {
   const isDragging = useRef(false)
   const offsetY = useRef(0)
 
+  // Lifted state from Panel to App
+  const [activeHint, setActiveHint] = useState(10)
+  const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({})
+  const [unlockedHints, setUnlockedHints] = useState(new Set<number>())
+  const [totalAssistance, setTotalAssistance] = useState(0)
+  const [userInput, setUserInput] = useState('')
+  const [isExpanded, setIsExpanded] = useState(false)
+
   const togglePanel = () => setIsPanelOpen(prev => !prev)
 
   useEffect(() => {
@@ -87,7 +95,21 @@ const App = () => {
       )}
 
       {isPanelOpen && (
-        <Panel onClose={togglePanel} />
+        <Panel
+          onClose={togglePanel}
+          activeHint={activeHint}
+          setActiveHint={setActiveHint}
+          hintMessages={hintMessages}
+          setHintMessages={setHintMessages}
+          unlockedHints={unlockedHints}
+          setUnlockedHints={setUnlockedHints}
+          totalAssistance={totalAssistance}
+          setTotalAssistance={setTotalAssistance}
+          userInput={userInput}
+          setUserInput={setUserInput}
+          isExpanded={isExpanded}
+          setIsExpanded={setIsExpanded}
+        />
       )}
     </>
   )
