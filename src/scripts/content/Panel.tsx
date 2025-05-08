@@ -25,13 +25,11 @@ const tabIcons = {
 
 const languages = ['Python', 'C++', 'Java'];
 
-// Return the hint percentage directly as the hint level
 const getHintLevel = (percent: number): number => {
   const levels = [10, 20, 30, 40, 100];
-  return levels.includes(percent) ? percent : 10; // Default to 10 if not found
+  return levels.includes(percent) ? percent : 10;
 };
 
-// Define the error message to filter out from backend
 const ERROR_MESSAGE = "I’m sorry, I can only assist based on the current hint.";
 
 const Panel = ({
@@ -202,16 +200,17 @@ const Panel = ({
 
   return (
     <div 
-      className="fixed bg-white text-zinc-800 shadow-2xl z[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
+      className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
       style={{ 
         top: '10px', 
         right: '10px', 
         bottom: '10px', 
         width: '600px', 
-        height: 'calc(100% - 30px)' 
+        maxHeight: 'calc(100% - 30px)',
+        overflowY: 'auto'
       }}
     >
-      <div className="border-b border-gray-200 pb-3">
+      <div className="border-b border-gray-200 pb-3 flex-shrink-0">
         <div className="flex justify-between items-start mb-2">
           <img src={WLCPLogo} alt="LeetCopilot" className="h-10 w-auto object-contain pointer-events-none" />
           <button onClick={onClose} className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100">✕</button>
@@ -232,7 +231,7 @@ const Panel = ({
         </div>
       </div>
 
-      <p className="text-base font-medium text-left">
+      <p className="text-base font-medium text-left flex-shrink-0">
         {problemTitle} – <span className={cn("font-semibold", getDifficultyColor(difficulty))}>{difficulty}</span>
         <div className="border border-gray-300 rounded-md p-3 mt-2 shadow-sm bg-white relative">
           <div className="flex justify-between items-center mb-2 text-sm font-medium">
@@ -244,17 +243,19 @@ const Panel = ({
               Time Complexity: <span className="font-semibold">{timeComplexity}</span>   Ideal: <span className="font-semibold">{optimizedScore}/10</span>
             </div>
           </div>
-          <textarea
-            placeholder="Tell us your thought of approaching?...."
-            className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
-            value={thoughts}
-            onChange={(e) => setThoughts(e.target.value)}
-          />
-          {aiFeedback && <div className="text-gray-500 text-sm mt-1">{aiFeedback}</div>}
+          <div className="max-h-[90px] overflow-y-auto">
+            <textarea
+              placeholder="Tell us your thought of approaching?...."
+              className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
+              value={thoughts}
+              onChange={(e) => setThoughts(e.target.value)}
+            />
+            {aiFeedback && <div className="text-gray-500 text-sm mt-1">{aiFeedback}</div>}
+          </div>
         </div>
       </p>
 
-      <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-between">
+      <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-between flex-shrink-0">
         <button onClick={scrollLeft} disabled={languageIndex === 0} className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30">◀</button>
         <div className="flex w-full justify-center">
           {languages.map((lang, i) => (
@@ -265,7 +266,7 @@ const Panel = ({
       </div>
 
       <div className="flex flex-1 gap-4 overflow-hidden">
-        <div className="flex flex-col w-[70px] h-full gap-1.5">
+        <div className="flex flex-col w-[70px] h-full gap-1.5 flex-shrink-0">
           {hintData.map(({ percent }) => (
             <button key={percent} 
               onClick={() => setActiveHint(percent)} 
@@ -288,7 +289,7 @@ const Panel = ({
         </div>
 
         <div className="flex flex-col flex-1 rounded-xl bg-white px-5 pt-5 pb-3 shadow-md border border-gray-200/30">
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-[200px] max-h-[300px]">
             {isHintUnlocked ? (
               <div className="flex flex-col flex-1 gap-3 overflow-hidden">
                 <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 min-h-0">
@@ -378,7 +379,7 @@ const Panel = ({
             )}
           </div>
 
-          <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200">
+          <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200 flex-shrink-0">
             <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
             <div className="flex gap-3">
               <button className="px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow">FINISH</button>
