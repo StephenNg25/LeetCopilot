@@ -24,6 +24,15 @@ const tabIcons = {
 
 const languages = ['Python', 'C++', 'Java'];
 
+// Return the hint percentage directly as the hint level
+const getHintLevel = (percent: number): number => {
+  const levels = [10, 20, 30, 40, 100];
+  return levels.includes(percent) ? percent : 10; // Default to 10 if not found
+};
+
+// Define the error message to filter out from backend
+const ERROR_MESSAGE = "I’m sorry, I can only assist based on the current hint.";
+
 const Panel = ({
   onClose,
   activeHint,
@@ -44,6 +53,7 @@ const Panel = ({
   const [problemTitle, setProblemTitle] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [problemContent, setProblemContent] = useState<string | null>(null); // Store problem content
   const chatEndRef = useRef(null);
 
   const isHintUnlocked = unlockedHints.has(activeHint);
@@ -67,6 +77,8 @@ const Panel = ({
         const problem = await fetchProblemTitle(titleSlug);
         setProblemTitle(`${problem.questionFrontendId}. ${problem.title}`);
         setDifficulty(problem.difficulty);
+        const content = await fetchProblemContent(titleSlug); // Fetch problem content
+        setProblemContent(content?.content || null);
       } catch (err) {
         console.error('[LeetCopilot] Failed to fetch problem:', err);
       }
@@ -82,7 +94,7 @@ const Panel = ({
 
   const handleSendMessage = async (input = userInput, hint = activeHint) => {
     const trimmed = input.trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed || isSending || !problemContent) return;
 
     setIsSending(true);
 
@@ -90,7 +102,7 @@ const Panel = ({
     const newUserMsg = { role: 'user', text: trimmed };
     const prevMessages = hintMessages[hint] || [];
 
-    // Update hintMessages with the user message
+    // Update hintMessages with the user message (keep full history for display)
     setHintMessages(prev => ({
       ...prev,
       [hint]: [...prevMessages, newUserMsg]
@@ -102,8 +114,26 @@ const Panel = ({
     }
 
     try {
-      // Call AI with the updated conversation history (including the new user message)
-      const aiResponse = await fetchConversation(prevMessages, trimmed);
+      // Construct a reduced conversation history for the API call
+      // Always include the first message (the hint), then take the last 6 messages excluding the first one
+      const reducedHistory = prevMessages.length > 0
+        ? [
+            prevMessages[0], // Always include the first message (the hint)
+            ...prevMessages.slice(1).slice(-6) // Take the last 6 messages after the first one
+          ]
+        : [];
+
+      // Filter out the last pair if it's an error message
+      if (reducedHistory.length >= 2 && reducedHistory[reducedHistory.length - 1].role === 'assistant' && reducedHistory[reducedHistory.length - 1].text === ERROR_MESSAGE) {
+        reducedHistory.pop(); // Remove the error message
+        if (reducedHistory.length > 1 && reducedHistory[reducedHistory.length - 1].role === 'user') {
+          reducedHistory.pop(); // Remove the preceding user message
+        }
+      }
+
+      // Determine hint level and call AI with reduced history
+      const hintLevel = getHintLevel(hint);
+      const aiResponse = await fetchConversation(reducedHistory, trimmed, hintLevel, problemContent);
 
       // Save assistant response
       setHintMessages(prev => ({
@@ -125,9 +155,11 @@ const Panel = ({
   const handleUnlockHint = async (percent: number) => {
     try {
       const titleSlug = window.location.pathname.split('/')[2];
-      const problemContent = await fetchProblemContent(titleSlug);
-      if (!problemContent || !problemContent.content) return;
-      const hintMessage = await fetchHintFromGroq(percent, problemContent.content);
+      const problemContentData = await fetchProblemContent(titleSlug);
+      if (!problemContentData || !problemContentData.content) return;
+      const problemContent = problemContentData.content;
+      setProblemContent(problemContent); // Update state with fetched content
+      const hintMessage = await fetchHintFromGroq(percent, problemContent);
 
       setHintMessages(prev => ({
         ...prev,
@@ -154,7 +186,7 @@ const Panel = ({
 
   return (
     <div 
-      className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
+      className="fixed bg-white text-zinc-800 shadow-2xl z[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
       style={{ 
         top: '10px', 
         right: '10px', 
@@ -193,7 +225,7 @@ const Panel = ({
               <button className="px-2 py-1 bg-blue-100 text-blue-500 rounded hover:bg-blue-200 transition">EVALUATE</button>
             </div>
             <div className="text-gray-600">
-              Time Complexity: <span className="font-semibold">N/A</span> &nbsp; Ideal: <span className="font-semibold">0/10</span>
+              Time Complexity: <span className="font-semibold">N/A</span>   Ideal: <span className="font-semibold">0/10</span>
             </div>
           </div>
           <textarea placeholder="Tell us your thought of approaching?...." className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]" />
