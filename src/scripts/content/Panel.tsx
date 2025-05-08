@@ -1,6 +1,7 @@
 import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
+import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
 import { cn } from '@/utils/browser';
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
@@ -53,7 +54,11 @@ const Panel = ({
   const [problemTitle, setProblemTitle] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [problemContent, setProblemContent] = useState<string | null>(null); // Store problem content
+  const [problemContent, setProblemContent] = useState<string | null>(null);
+  const [thoughts, setThoughts] = useState('');
+  const [aiFeedback, setAiFeedback] = useState('');
+  const [timeComplexity, setTimeComplexity] = useState('N/A');
+  const [optimizedScore, setOptimizedScore] = useState('0');
   const chatEndRef = useRef(null);
 
   const isHintUnlocked = unlockedHints.has(activeHint);
@@ -77,7 +82,7 @@ const Panel = ({
         const problem = await fetchProblemTitle(titleSlug);
         setProblemTitle(`${problem.questionFrontendId}. ${problem.title}`);
         setDifficulty(problem.difficulty);
-        const content = await fetchProblemContent(titleSlug); // Fetch problem content
+        const content = await fetchProblemContent(titleSlug);
         setProblemContent(content?.content || null);
       } catch (err) {
         console.error('[LeetCopilot] Failed to fetch problem:', err);
@@ -98,54 +103,45 @@ const Panel = ({
 
     setIsSending(true);
 
-    // Save user message into state
     const newUserMsg = { role: 'user', text: trimmed };
     const prevMessages = hintMessages[hint] || [];
 
-    // Update hintMessages with the user message (keep full history for display)
     setHintMessages(prev => ({
       ...prev,
       [hint]: [...prevMessages, newUserMsg]
     }));
 
-    // Clear input if called from Panel's textarea
     if (input === userInput) {
       setUserInput('');
     }
 
     try {
-      // Construct a reduced conversation history for the API call
-      // Always include the first message (the hint), then take the last 6 messages excluding the first one
       const reducedHistory = prevMessages.length > 0
         ? [
-            prevMessages[0], // Always include the first message (the hint)
-            ...prevMessages.slice(1).slice(-6) // Take the last 6 messages after the first one
+            prevMessages[0],
+            ...prevMessages.slice(1).slice(-6)
           ]
         : [];
 
-      // Filter out the last pair if it's an error message
       if (reducedHistory.length >= 2 && reducedHistory[reducedHistory.length - 1].role === 'assistant' && reducedHistory[reducedHistory.length - 1].text === ERROR_MESSAGE) {
-        reducedHistory.pop(); // Remove the error message
+        reducedHistory.pop();
         if (reducedHistory.length > 1 && reducedHistory[reducedHistory.length - 1].role === 'user') {
-          reducedHistory.pop(); // Remove the preceding user message
+          reducedHistory.pop();
         }
       }
 
-      // Determine hint level and call AI with reduced history
       const hintLevel = getHintLevel(hint);
       const aiResponse = await fetchConversation(reducedHistory, trimmed, hintLevel, problemContent);
 
-      // Save assistant response
       setHintMessages(prev => ({
         ...prev,
         [hint]: [...(prev[hint] || []), { role: 'assistant', text: aiResponse }]
       }));
     } catch (err) {
       console.error('[Chat] Failed to get AI response:', err);
-      // Add an error message to the chat
       setHintMessages(prev => ({
         ...prev,
-        [hint]: [...(prev[hint] || []), { role: 'assistant', text: 'Sorry, I encountered an error. Please try again.' }]
+        [hint]: [...(prev[hint] || []), { role: 'assistant', text: 'Sorry, I am burning out at this point. Please try again later!' }]
       }));
     } finally {
       setIsSending(false);
@@ -158,7 +154,7 @@ const Panel = ({
       const problemContentData = await fetchProblemContent(titleSlug);
       if (!problemContentData || !problemContentData.content) return;
       const problemContent = problemContentData.content;
-      setProblemContent(problemContent); // Update state with fetched content
+      setProblemContent(problemContent);
       const hintMessage = await fetchHintFromGroq(percent, problemContent);
 
       setHintMessages(prev => ({
@@ -177,6 +173,26 @@ const Panel = ({
     } catch (error) {
       console.error('Failed to unlock hint:', error);
     }
+  };
+
+  const handleEvaluate = async () => {
+    if (!thoughts.trim() || !problemContent) return;
+    try {
+      const { timeComplexity, optimizedScore, feedback } = await fetchThoughtsEvaluation(thoughts, problemContent);
+      setTimeComplexity(timeComplexity);
+      setOptimizedScore(optimizedScore);
+      setAiFeedback(feedback);
+    } catch (error) {
+      console.error('Failed to evaluate thoughts:', error);
+      setAiFeedback('Error evaluating your approach.');
+    }
+  };
+
+  const handleDelete = () => {
+    setThoughts('');
+    setAiFeedback('');
+    setTimeComplexity('N/A');
+    setOptimizedScore('0');
   };
 
   useEffect(() => {
@@ -221,14 +237,20 @@ const Panel = ({
         <div className="border border-gray-300 rounded-md p-3 mt-2 shadow-sm bg-white relative">
           <div className="flex justify-between items-center mb-2 text-sm font-medium">
             <div className="flex space-x-2">
-              <button className="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 transition">DELETE</button>
-              <button className="px-2 py-1 bg-blue-100 text-blue-500 rounded hover:bg-blue-200 transition">EVALUATE</button>
+              <button onClick={handleDelete} className="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 transition">DELETE</button>
+              <button onClick={handleEvaluate} className="px-2 py-1 bg-blue-100 text-blue-500 rounded hover:bg-blue-200 transition">EVALUATE</button>
             </div>
             <div className="text-gray-600">
-              Time Complexity: <span className="font-semibold">N/A</span>   Ideal: <span className="font-semibold">0/10</span>
+              Time Complexity: <span className="font-semibold">{timeComplexity}</span>   Ideal: <span className="font-semibold">{optimizedScore}/10</span>
             </div>
           </div>
-          <textarea placeholder="Tell us your thought of approaching?...." className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]" />
+          <textarea
+            placeholder="Tell us your thought of approaching?...."
+            className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
+            value={thoughts}
+            onChange={(e) => setThoughts(e.target.value)}
+          />
+          {aiFeedback && <div className="text-gray-500 text-sm mt-1">{aiFeedback}</div>}
         </div>
       </p>
 
@@ -288,31 +310,35 @@ const Panel = ({
                 </div>
 
                 <div className="relative flex items-center mb-1 w-[98%] self-center">
-                  <textarea
-                    className="w-full rounded-full px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
-                    rows={1}
-                    value={userInput}
-                    placeholder="Message LeetCopilot..."
-                    onChange={(e) => setUserInput(e.target.value)}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      const newHeight = Math.min(target.scrollHeight, 100);
-                      target.style.height = `${newHeight}px`;
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                        setUserInput("");
+                  <div className="flex flex-row-reverse w-full">
+                    <textarea
+                      className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
+                      rows={1}
+                      value={userInput}
+                      placeholder="Message LeetCopilot..."
+                      onChange={(e) => setUserInput(e.target.value)}
+                      onInput={(e) => {
                         const target = e.target as HTMLTextAreaElement;
                         target.style.height = 'auto';
-                        target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
-                      }
-                    }}
-                  />
+                        const newHeight = Math.min(target.scrollHeight, 100);
+                        target.style.height = `${newHeight}px`;
+                        target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                          setUserInput("");
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
+                          target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
+                        }
+                      }}
+                      style={{ direction: 'ltr', overflowY: 'hidden' }}
+                    />
+                  </div>
                   
-                  {/* Expand Icon */}
                   <button
                     title="Expand"
                     onClick={() => setIsExpanded(true)}
@@ -325,13 +351,12 @@ const Panel = ({
                     />
                   </button>
 
-                  {/* Send Button */}
                   <button
                     onClick={() => {
                       handleSendMessage();
                       setUserInput("");
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs shadow"
                   >↑</button>
                 </div>
               </div>
