@@ -289,16 +289,25 @@ const Panel = ({
 
                 <div className="relative flex items-center mb-1 w-[98%] self-center">
                   <textarea
-                    className="w-full rounded-full px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-10"
+                    className="w-full rounded-full px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
                     rows={1}
                     value={userInput}
                     placeholder="Message LeetCopilot..."
                     onChange={(e) => setUserInput(e.target.value)}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      const newHeight = Math.min(target.scrollHeight, 100);
+                      target.style.height = `${newHeight}px`;
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage();
                         setUserInput("");
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
                       }
                     }}
                   />

@@ -102,6 +102,8 @@ const ExpandedHintModal = ({
     setIsLoading(true);
     try {
       await handleUnlockHint(activeHint);
+    } catch (error) {
+      console.error('Failed to unlock hint:', error);
     } finally {
       setIsLoading(false);
     }
@@ -111,14 +113,22 @@ const ExpandedHintModal = ({
     if (!userInput.trim() || isLoading) return;
 
     setIsLoading(true);
+    try {
+      // Notify parent to add user message and handle the response
+      await handleSendMessage(userInput, activeHint);
 
-    // Notify parent to add user message and handle the response
-    await handleSendMessage(userInput, activeHint);
-
-    // Clear input and reset textarea height
-    setUserInput('');
-    const textarea = document.querySelector('textarea');
-    if (textarea) textarea.style.height = '50px';
+      // Clear input and reset textarea height
+      setUserInput('');
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        textarea.style.height = '50px';
+        textarea.focus(); // Ensure textarea remains focusable
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    } finally {
+      setIsLoading(false); // Ensure isLoading is reset
+    }
   };
 
   return (
