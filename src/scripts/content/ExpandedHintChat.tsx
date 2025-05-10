@@ -18,7 +18,9 @@ const hintData = [
 
 const highlightTerms = (text) => {
   if (typeof text !== 'string') return text;
-  const terms = ['hash[- ]?table', 'hash-based', 'array', 'stack', 'queue', 'linked lists?', 'binary tree', 'graph', 'DFS', 'BFS', 'iterative', 'recursive', 'brute-force'];
+  const terms = ['hash[- ]?table', 'hash-based', 'arrays?', 'stack', 'queue', 'linked lists?', 
+                 'binary tree', 'graph', 'DFS', 'BFS', 'iterative', 'recursive', 'brute-force',
+                 'sorting', 'merging', 'binary search'];
   const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
   return text.replace(regex, (match) => `<span class="text-orange-400 font-semibold">${match}</span>`);
 };
