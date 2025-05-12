@@ -9,7 +9,10 @@ export function cn(...inputs: ClassValue[]) {
 export const isLeetCodeProblemPage = () => {
     return /^https:\/\/leetcode\.com\/problems\/[^/]+/.test(window.location.href)
 }
-  
+
+export const isSubmissionsPage = () => {
+    return /https:\/\/leetcode\.com\/problems\/[^/]+\/submissions\/[^\/]+\/$/.test(window.location.href);
+};
 
 export const sendMessageToBackground = async (message: any): Promise<any> => {
     try {

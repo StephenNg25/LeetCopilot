@@ -2,6 +2,8 @@ import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
+import { fetchDebugger } from '@/utils/fetchdebugger';
+import { isSubmissionsPage } from '@/utils/browser'
 import { cn } from '@/utils/browser';
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
@@ -57,6 +59,7 @@ const Panel = ({
   const [aiFeedback, setAiFeedback] = useState('');
   const [timeComplexity, setTimeComplexity] = useState('N/A');
   const [optimizedScore, setOptimizedScore] = useState('0');
+  const [debugResponse, setDebugResponse] = useState<string | null>(null);
   const chatEndRef = useRef(null);
 
   const isHintUnlocked = unlockedHints.has(activeHint);
@@ -191,6 +194,29 @@ const Panel = ({
     setAiFeedback('');
     setTimeComplexity('N/A');
     setOptimizedScore('0');
+  };
+
+  const handleDebug = async () => {
+    if (!isSubmissionsPage() || !problemContent) return;
+
+    try {
+      // Simulate scraping problem content from description page
+      const problemUrl = window.location.href.replace('/submissions/', '/description/');
+      // Note: Actual scraping would require DOM access or a proxy; this is a placeholder
+      const scrapedProblemContent = problemContent || 'Unable to scrape problem content';
+
+      // Simulate scraping submitted code and error from submissions page
+      const submissionId = window.location.href.match(/submissions\/([^\/]+)/)?.[1] || '';
+      const errorDescription = 'AttributeError: \'list\' object has no attribute \'appe\'';
+      const submittedCode = `class Solution(object):\n    def twoSum(self, nums, target):\n        type nums: List[int]\n        :type target: int\n        :rtype: List[int]\n        result = []`;
+
+      const debugResult = await fetchDebugger(scrapedProblemContent, submittedCode, errorDescription);
+      setDebugResponse(debugResult);
+      setAiFeedback(debugResult || 'Debugging failed.');
+    } catch (error) {
+      console.error('Failed to debug:', error);
+      setAiFeedback('Error during debugging.');
+    }
   };
 
   useEffect(() => {
@@ -382,7 +408,14 @@ const Panel = ({
           <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200 flex-shrink-0">
             <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
             <div className="flex gap-3">
-              <button className="px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow">FINISH</button>
+              <button
+                onClick={handleDebug}
+                disabled={!isSubmissionsPage()}
+                className={cn("px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
+                  !isSubmissionsPage() && "opacity-50 cursor-not-allowed")}
+              >
+                DEBUG
+              </button>
               <button className="px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow">SAVE</button>
             </div>
           </div>
