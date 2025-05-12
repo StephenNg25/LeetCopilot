@@ -3,7 +3,7 @@ import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
 import { fetchDebugger } from '@/utils/fetchdebugger';
-import { isSubmissionsPage } from '@/utils/browser'
+import { isSubmissionsPage } from '@/utils/browser';
 import { cn } from '@/utils/browser';
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
@@ -198,26 +198,47 @@ const Panel = ({
 
   const handleDebug = async () => {
     if (!isSubmissionsPage() || !problemContent) return;
-
+  
     try {
-      // Simulate scraping problem content from description page
-      const problemUrl = window.location.href.replace('/submissions/', '/description/');
-      // Note: Actual scraping would require DOM access or a proxy; this is a placeholder
-      const scrapedProblemContent = problemContent || 'Unable to scrape problem content';
-
-      // Simulate scraping submitted code and error from submissions page
-      const submissionId = window.location.href.match(/submissions\/([^\/]+)/)?.[1] || '';
-      const errorDescription = 'AttributeError: \'list\' object has no attribute \'appe\'';
-      const submittedCode = `class Solution(object):\n    def twoSum(self, nums, target):\n        type nums: List[int]\n        :type target: int\n        :rtype: List[int]\n        result = []`;
-
-      const debugResult = await fetchDebugger(scrapedProblemContent, submittedCode, errorDescription);
+      const extractSubmissionFromPage = () => {
+        // ✅ Get submitted code from <code> block inside <pre>
+        const codeElement = document.querySelector('pre code.language-python');
+        let submittedCode = '';
+  
+        if (codeElement) {
+          submittedCode = Array.from(codeElement.childNodes)
+            .map(node => node.textContent)
+            .join('')
+            .trim();
+        } else {
+          const fallbackLines = Array.from(document.querySelectorAll('.view-lines > div'));
+          submittedCode = fallbackLines.map(line => line.textContent).join('\n').trim();
+        }
+  
+        // ✅ Get error type (e.g., Runtime Error, Time Limit Exceeded, Wrong Answer)
+        const errorTypeElem = document.querySelector('h3[class*="text-red-60"]');
+        const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
+        const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d)/, '$1\n$2');
+        // ✅ Get traceback or error block
+        // ✅ Universal traceback selector
+        const tracebackElem = document.querySelector(
+          'div.font-menlo.whitespace-pre-wrap, div.group.relative.rounded-lg'
+        );
+        const rawError = tracebackElem?.textContent?.trim() || 'No traceback.';
+        const fullErrorDescription = `${errorType}\n\n${rawError}`;
+        return { submittedCode, fullErrorDescription };
+      };
+  
+      const { submittedCode, fullErrorDescription } = extractSubmissionFromPage();
+  
+      const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
       setDebugResponse(debugResult);
       setAiFeedback(debugResult || 'Debugging failed.');
     } catch (error) {
-      console.error('Failed to debug:', error);
+      console.error('[DEBUG] Failed:', error);
       setAiFeedback('Error during debugging.');
     }
-  };
+  };  
 
   useEffect(() => {
     document.body.style.overflow = isExpanded ? 'hidden' : '';
