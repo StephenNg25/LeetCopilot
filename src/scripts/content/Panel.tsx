@@ -201,6 +201,21 @@ const Panel = ({
   
     try {
       const extractSubmissionFromPage = () => {
+        // Convert problemContent from HTML to Markdown
+        let markdownContent = problemContent
+          .replace(/<p>/g, '')
+          .replace(/<\/p>/g, '\n\n')
+          .replace(/<strong class="example">([^<]+)<\/strong>/g, '**$1:**')
+          .replace(/<pre>/g, '```')
+          .replace(/<\/pre>/g, '```')
+          .replace(/<ul>/g, '')
+          .replace(/<\/ul>/g, '')
+          .replace(/<li>/g, '- ')
+          .replace(/<\/li>/g, '\n')
+          .replace(/<code>/g, '`')
+          .replace(/<\/code>/g, '`')
+          .trim();
+  
         // Get submitted code from <code> block inside <pre>
         const codeElement = document.querySelector('pre code.language-python');
         let submittedCode = '';
@@ -218,73 +233,130 @@ const Panel = ({
             .trim();
         }
   
-        // Get error type (e.g., Time Limit Exceeded, Wrong Answer)
+        // Get error type (e.g., Runtime Error, Time Limit Exceeded, Wrong Answer)
         const errorTypeElem = document.querySelector('h3[class*="text-red-6"], h3[class*="dark:text-red-60"]');
         const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
         const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
   
+        // Get traceback or error message block
+        const tracebackElem = document.querySelector('div.font-menlo.whitespace-pre-wrap[class*="text-red"]');
+        const traceback = tracebackElem?.textContent?.trim() || '';
+  
         // Get input, output, expected, and last executed input values
-        const labelElems = Array.from(document.querySelectorAll('div.text-label-3'));
+        const labelElems = Array.from(document.querySelectorAll('div[class*="text-label"]'));
         let inputValue = '';
         let outputValue = '';
         let expectedValue = '';
         let lastExecutedInput = '';
   
+        // Debug: Log all labels found to verify selector
+        console.log('Labels found:', labelElems.map(elem => elem.textContent?.trim()));
+  
         for (let i = 0; i < labelElems.length; i++) {
           const key = labelElems[i].textContent?.trim();
+          const normalizedKey = key?.toLowerCase() || '';
   
-          if (key === 'Last Executed Input') {
+          if (normalizedKey === 'last executed input') {
             // Collect all variable name-value pairs until we hit Output or Expected
             let inputPairs = [];
-            i++; // Move to the next label after "Last Executed Input"
+            i++; // Move to the next element after "Last Executed Input"
+  
+            // Traverse siblings manually to find variable name-value pairs
+            let currentElement = labelElems[i];
             while (i < labelElems.length) {
               const nextKey = labelElems[i].textContent?.trim();
-              if (nextKey === 'Output' || nextKey === 'Expected') {
+              const nextNormalizedKey = nextKey?.toLowerCase() || '';
+              if (nextNormalizedKey === 'output' || nextNormalizedKey === 'expected') {
                 i--; // Step back so the Output/Expected label can be processed in the next iteration
                 break;
               }
-              const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-              const nextValue = nextValueElem?.textContent?.trim() || '';
-              if (nextKey && nextValue) {
-                // Clean nextKey to remove any trailing '=' or whitespace
-                const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
-                inputPairs.push(`${cleanedKey} = ${nextValue}`);
+  
+              currentElement = labelElems[i];
+              const variableName = currentElement?.textContent?.trim();
+              console.log(`Processing variable name: ${variableName}`);
+  
+              // Find the next sibling that might contain the value
+              let nextSibling = currentElement.nextElementSibling;
+              let value = '';
+              while (nextSibling) {
+                if (nextSibling.classList.contains('font-menlo')) {
+                  value = nextSibling.textContent?.trim() || '';
+                  console.log(`Found value for ${variableName}: ${value}`);
+                  break;
+                }
+                nextSibling = nextSibling.nextElementSibling;
+              }
+  
+              if (variableName && value) {
+                const cleanedKey = variableName.replace(/\s*=\s*$/, '');
+                inputPairs.push(`${cleanedKey} = ${value}`);
+              } else {
+                console.log(`No value found for variable: ${variableName}`);
               }
               i++;
             }
             // Join all input pairs with newlines
             lastExecutedInput = inputPairs.join('\n');
-          } else if (key === 'Input') {
-            // Collect all variable name-value pairs until we hit Output or Expected
+          } else if (normalizedKey === 'input') {
             let inputPairs = [];
-            i++; // Move to the next label after "Input"
+            i++; // Move to the next element after "Input"
+            let currentElement = labelElems[i];
             while (i < labelElems.length) {
               const nextKey = labelElems[i].textContent?.trim();
-              if (nextKey === 'Output' || nextKey === 'Expected') {
+              const nextNormalizedKey = nextKey?.toLowerCase() || '';
+              if (nextNormalizedKey === 'output' || nextNormalizedKey === 'expected') {
                 i--; // Step back so the Output/Expected label can be processed in the next iteration
                 break;
               }
-              const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-              const nextValue = nextValueElem?.textContent?.trim() || '';
-              if (nextKey && nextValue) {
-                // Clean nextKey to remove any trailing '=' or whitespace
-                const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
-                inputPairs.push(`${cleanedKey} = ${nextValue}`);
+  
+              currentElement = labelElems[i];
+              const variableName = currentElement?.textContent?.trim();
+              console.log(`Processing variable name: ${variableName}`);
+  
+              let nextSibling = currentElement.nextElementSibling;
+              let value = '';
+              while (nextSibling) {
+                if (nextSibling.classList.contains('font-menlo')) {
+                  value = nextSibling.textContent?.trim() || '';
+                  console.log(`Found value for ${variableName}: ${value}`);
+                  break;
+                }
+                nextSibling = nextSibling.nextElementSibling;
+              }
+  
+              if (variableName && value) {
+                const cleanedKey = variableName.replace(/\s*=\s*$/, '');
+                inputPairs.push(`${cleanedKey} = ${value}`);
+              } else {
+                console.log(`No value found for variable: ${variableName}`);
               }
               i++;
             }
-            // Join all input pairs with newlines
             inputValue = inputPairs.join('\n');
-          } else if (key === 'Output') {
-            const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-            outputValue = valueElem?.textContent?.trim() || '';
-          } else if (key === 'Expected') {
-            const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-            expectedValue = valueElem?.textContent?.trim() || '';
+          } else if (normalizedKey === 'output') {
+            console.log('Found Output at index:', i);
+            let nextSibling = labelElems[i].nextElementSibling;
+            while (nextSibling) {
+              if (nextSibling.classList.contains('font-menlo')) {
+                outputValue = nextSibling.textContent?.trim() || '';
+                break;
+              }
+              nextSibling = nextSibling.nextElementSibling;
+            }
+          } else if (normalizedKey === 'expected') {
+            console.log('Found Expected at index:', i);
+            let nextSibling = labelElems[i].nextElementSibling;
+            while (nextSibling) {
+              if (nextSibling.classList.contains('font-menlo')) {
+                expectedValue = nextSibling.textContent?.trim() || '';
+                break;
+              }
+              nextSibling = nextSibling.nextElementSibling;
+            }
           }
         }
   
-        // Construct full error description with conditional sections
+        // Construct full error description with conditional sections and traceback
         let fullErrorDescription = `${errorType}`;
         if (lastExecutedInput) {
           fullErrorDescription += `\n\nLast Executed Input:\n${lastExecutedInput}`;
@@ -298,14 +370,18 @@ const Panel = ({
         if (expectedValue) {
           fullErrorDescription += `\n\nExpected:\n${expectedValue}`;
         }
+        if (traceback) {
+          fullErrorDescription += `\n\n${traceback}`;
+        }
   
-        return { submittedCode, fullErrorDescription };
+        return { submittedCode, fullErrorDescription, markdownContent };
       };
   
-      const { submittedCode, fullErrorDescription } = extractSubmissionFromPage();
+      const { submittedCode, fullErrorDescription, markdownContent } = extractSubmissionFromPage();
+      console.log('markdownContent:', markdownContent);
       console.log('errorDescription:', fullErrorDescription);
   
-      const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
+      const debugResult = await fetchDebugger(markdownContent, submittedCode, fullErrorDescription);
       setDebugResponse(debugResult);
       setAiFeedback(debugResult || 'Debugging failed.');
     } catch (error) {
