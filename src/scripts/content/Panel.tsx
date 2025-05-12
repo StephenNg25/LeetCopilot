@@ -195,15 +195,16 @@ const Panel = ({
     setTimeComplexity('N/A');
     setOptimizedScore('0');
   };
-
+  
   const handleDebug = async () => {
     if (!isSubmissionsPage() || !problemContent) return;
   
     try {
       const extractSubmissionFromPage = () => {
-        // ✅ Extract submitted code
+        // Get submitted code from <code> block inside <pre>
         const codeElement = document.querySelector('pre code.language-python');
         let submittedCode = '';
+  
         if (codeElement) {
           submittedCode = Array.from(codeElement.childNodes)
             .map(node => node.textContent || '')
@@ -217,57 +218,93 @@ const Panel = ({
             .trim();
         }
   
-        // ✅ Extract error type
-        const errorTypeElem = document.querySelector('h3[class*="text-red-60"]');
+        // Get error type (e.g., Time Limit Exceeded, Wrong Answer)
+        const errorTypeElem = document.querySelector('h3[class*="text-red-6"], h3[class*="dark:text-red-60"]');
         const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
-        const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d)/, '$1\n$2');
+        const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
   
-        // ✅ Extract traceback
-        const tracebackElem = document.querySelector(
-          'div.font-menlo.whitespace-pre-wrap, div.group.relative.rounded-lg'
-        );
-        const rawError = tracebackElem?.textContent?.trim() || 'No traceback.';
+        // Get input, output, expected, and last executed input values
+        const labelElems = Array.from(document.querySelectorAll('div.text-label-3'));
+        let inputValue = '';
+        let outputValue = '';
+        let expectedValue = '';
+        let lastExecutedInput = '';
   
-        // ✅ Scoped extractor for Input, Output, Expected
-        const extractSectionPairs = (sectionTitle) => {
-          const sectionHeader = Array.from(document.querySelectorAll('div.text-label-3'))
-            .find(el => el.textContent?.trim() === sectionTitle);
-          if (!sectionHeader) return [];
+        for (let i = 0; i < labelElems.length; i++) {
+          const key = labelElems[i].textContent?.trim();
   
-          const sectionRoot = sectionHeader.closest('div.flex-col');
-          if (!sectionRoot) return [];
-  
-          const pairs = [];
-          const seen = new Set();
-          const labelElems = sectionRoot.querySelectorAll('div.text-label-3');
-          for (const labelElem of labelElems) {
-            const key = labelElem.textContent?.trim();
-            const valueElem = labelElem.parentElement?.querySelector('div.font-menlo');
-            const value = valueElem?.textContent?.trim();
-            if (key && value !== undefined && !seen.has(key)) {
-              seen.add(key);
-              pairs.push(`${key} ${value}`);
+          if (key === 'Last Executed Input') {
+            // Collect all variable name-value pairs until we hit Output or Expected
+            let inputPairs = [];
+            i++; // Move to the next label after "Last Executed Input"
+            while (i < labelElems.length) {
+              const nextKey = labelElems[i].textContent?.trim();
+              if (nextKey === 'Output' || nextKey === 'Expected') {
+                i--; // Step back so the Output/Expected label can be processed in the next iteration
+                break;
+              }
+              const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
+              const nextValue = nextValueElem?.textContent?.trim() || '';
+              if (nextKey && nextValue) {
+                // Clean nextKey to remove any trailing '=' or whitespace
+                const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
+                inputPairs.push(`${cleanedKey} = ${nextValue}`);
+              }
+              i++;
             }
+            // Join all input pairs with newlines
+            lastExecutedInput = inputPairs.join('\n');
+          } else if (key === 'Input') {
+            // Collect all variable name-value pairs until we hit Output or Expected
+            let inputPairs = [];
+            i++; // Move to the next label after "Input"
+            while (i < labelElems.length) {
+              const nextKey = labelElems[i].textContent?.trim();
+              if (nextKey === 'Output' || nextKey === 'Expected') {
+                i--; // Step back so the Output/Expected label can be processed in the next iteration
+                break;
+              }
+              const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
+              const nextValue = nextValueElem?.textContent?.trim() || '';
+              if (nextKey && nextValue) {
+                // Clean nextKey to remove any trailing '=' or whitespace
+                const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
+                inputPairs.push(`${cleanedKey} = ${nextValue}`);
+              }
+              i++;
+            }
+            // Join all input pairs with newlines
+            inputValue = inputPairs.join('\n');
+          } else if (key === 'Output') {
+            const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
+            outputValue = valueElem?.textContent?.trim() || '';
+          } else if (key === 'Expected') {
+            const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
+            expectedValue = valueElem?.textContent?.trim() || '';
           }
-          return pairs;
-        };
+        }
   
-        const inputLines = extractSectionPairs('Input');
-        const outputLines = extractSectionPairs('Output');
-        const expectedLines = extractSectionPairs('Expected');
+        // Construct full error description with conditional sections
+        let fullErrorDescription = `${errorType}`;
+        if (lastExecutedInput) {
+          fullErrorDescription += `\n\nLast Executed Input:\n${lastExecutedInput}`;
+        }
+        if (inputValue) {
+          fullErrorDescription += `\n\nInput:\n${inputValue}`;
+        }
+        if (outputValue) {
+          fullErrorDescription += `\n\nOutput:\n${outputValue}`;
+        }
+        if (expectedValue) {
+          fullErrorDescription += `\n\nExpected:\n${expectedValue}`;
+        }
   
-        // ✅ Build final input text
-        let inputText = '';
-        if (inputLines.length) inputText += inputLines.join('\n');
-        if (outputLines.length) inputText += `\nOutput = ${outputLines.join(' ')}`;
-        if (expectedLines.length) inputText += `\nExpected = ${expectedLines.join(' ')}`;
-  
-        // ✅ Final combined description
-        const fullErrorDescription = `${errorType}\n\n${inputText.trim()}\n\n${rawError}`;
         return { submittedCode, fullErrorDescription };
       };
   
       const { submittedCode, fullErrorDescription } = extractSubmissionFromPage();
+      console.log('errorDescription:', fullErrorDescription);
+  
       const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
       setDebugResponse(debugResult);
       setAiFeedback(debugResult || 'Debugging failed.');
@@ -275,7 +312,7 @@ const Panel = ({
       console.error('[DEBUG] Failed:', error);
       setAiFeedback('Error during debugging.');
     }
-  };    
+  };  
 
   useEffect(() => {
     document.body.style.overflow = isExpanded ? 'hidden' : '';
