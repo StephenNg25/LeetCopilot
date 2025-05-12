@@ -201,36 +201,73 @@ const Panel = ({
   
     try {
       const extractSubmissionFromPage = () => {
-        // ✅ Get submitted code from <code> block inside <pre>
+        // ✅ Extract submitted code
         const codeElement = document.querySelector('pre code.language-python');
         let submittedCode = '';
-  
         if (codeElement) {
           submittedCode = Array.from(codeElement.childNodes)
-            .map(node => node.textContent)
+            .map(node => node.textContent || '')
             .join('')
             .trim();
         } else {
           const fallbackLines = Array.from(document.querySelectorAll('.view-lines > div'));
-          submittedCode = fallbackLines.map(line => line.textContent).join('\n').trim();
+          submittedCode = fallbackLines
+            .map(line => line.textContent || '')
+            .join('\n')
+            .trim();
         }
   
-        // ✅ Get error type (e.g., Runtime Error, Time Limit Exceeded, Wrong Answer)
+        // ✅ Extract error type
         const errorTypeElem = document.querySelector('h3[class*="text-red-60"]');
         const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
         const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d)/, '$1\n$2');
-        // ✅ Get traceback or error block
-        // ✅ Universal traceback selector
+  
+        // ✅ Extract traceback
         const tracebackElem = document.querySelector(
           'div.font-menlo.whitespace-pre-wrap, div.group.relative.rounded-lg'
         );
         const rawError = tracebackElem?.textContent?.trim() || 'No traceback.';
-        const fullErrorDescription = `${errorType}\n\n${rawError}`;
+  
+        // ✅ Scoped extractor for Input, Output, Expected
+        const extractSectionPairs = (sectionTitle) => {
+          const sectionHeader = Array.from(document.querySelectorAll('div.text-label-3'))
+            .find(el => el.textContent?.trim() === sectionTitle);
+          if (!sectionHeader) return [];
+  
+          const sectionRoot = sectionHeader.closest('div.flex-col');
+          if (!sectionRoot) return [];
+  
+          const pairs = [];
+          const seen = new Set();
+          const labelElems = sectionRoot.querySelectorAll('div.text-label-3');
+          for (const labelElem of labelElems) {
+            const key = labelElem.textContent?.trim();
+            const valueElem = labelElem.parentElement?.querySelector('div.font-menlo');
+            const value = valueElem?.textContent?.trim();
+            if (key && value !== undefined && !seen.has(key)) {
+              seen.add(key);
+              pairs.push(`${key} ${value}`);
+            }
+          }
+          return pairs;
+        };
+  
+        const inputLines = extractSectionPairs('Input');
+        const outputLines = extractSectionPairs('Output');
+        const expectedLines = extractSectionPairs('Expected');
+  
+        // ✅ Build final input text
+        let inputText = '';
+        if (inputLines.length) inputText += inputLines.join('\n');
+        if (outputLines.length) inputText += `\nOutput = ${outputLines.join(' ')}`;
+        if (expectedLines.length) inputText += `\nExpected = ${expectedLines.join(' ')}`;
+  
+        // ✅ Final combined description
+        const fullErrorDescription = `${errorType}\n\n${inputText.trim()}\n\n${rawError}`;
         return { submittedCode, fullErrorDescription };
       };
   
       const { submittedCode, fullErrorDescription } = extractSubmissionFromPage();
-  
       const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
       setDebugResponse(debugResult);
       setAiFeedback(debugResult || 'Debugging failed.');
@@ -238,7 +275,7 @@ const Panel = ({
       console.error('[DEBUG] Failed:', error);
       setAiFeedback('Error during debugging.');
     }
-  };  
+  };    
 
   useEffect(() => {
     document.body.style.overflow = isExpanded ? 'hidden' : '';
