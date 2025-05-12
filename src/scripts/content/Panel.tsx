@@ -264,27 +264,34 @@ const handleDebug = async () => {
             // Join all input pairs with newlines
             lastExecutedInput = inputPairs.join('\n');
           } else if (normalizedKey === 'input') {
-            // Collect all variable name-value pairs until we hit Output or Expected
             let inputPairs = [];
-            i++; // Move to the next label after "Input"
+            i++; // move to next element after "Input"
             while (i < labelElems.length) {
               const nextKey = labelElems[i].textContent?.trim();
               const nextNormalizedKey = nextKey?.toLowerCase() || '';
+          
               if (nextNormalizedKey === 'output' || nextNormalizedKey === 'expected') {
-                i--; // Step back so the Output/Expected label can be processed in the next iteration
+                i--;
                 break;
               }
+          
+              // 🧠 Skip value lines accidentally parsed as label elements
+              if (/^\[.*\]$/.test(nextKey) || /^".*"$/.test(nextKey) || /^[\d.]+$/.test(nextKey)) {
+                i++;
+                continue;
+              }
+          
               const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
               const nextValue = nextValueElem?.textContent?.trim() || '';
+  
               if (nextKey && nextValue) {
-                // Clean nextKey to remove any trailing '=' or whitespace
                 const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
                 inputPairs.push(`${cleanedKey} = ${nextValue}`);
               }
               i++;
             }
-            // Join all input pairs with newlines
             inputValue = inputPairs.join('\n');
+            
           } else if (normalizedKey === 'output') {
             const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
             outputValue = valueElem?.textContent?.trim() || '';
