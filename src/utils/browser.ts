@@ -11,7 +11,7 @@ export const isLeetCodeProblemPage = () => {
 }
 
 export const isSubmissionsPage = () => {
-    return /https:\/\/leetcode\.com\/problems\/[^/]+\/submissions\/[^\/]+\/$/.test(window.location.href);
+    return /^https:\/\/leetcode\.com\/problems\/[^/]+\/submissions\/[^/]+\/?(?:\?.*)?$/.test(window.location.href);
 };
 
 export const sendMessageToBackground = async (message: any): Promise<any> => {

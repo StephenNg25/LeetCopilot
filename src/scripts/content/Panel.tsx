@@ -2,9 +2,8 @@ import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
-import { fetchDebugger } from '@/utils/fetchdebugger';
-import { isSubmissionsPage } from '@/utils/browser';
-import { cn } from '@/utils/browser';
+import { isSubmissionsPage, cn } from '@/utils/browser';
+import { handleDebug } from '@/utils/debugger'; 
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import WLCPLogo from '@/assets/LCP-W.png';
@@ -59,7 +58,7 @@ const Panel = ({
   const [aiFeedback, setAiFeedback] = useState('');
   const [timeComplexity, setTimeComplexity] = useState('N/A');
   const [optimizedScore, setOptimizedScore] = useState('0');
-  const [, setDebugResponse] = useState<string | null>(null);
+  const [debugResponse, setDebugResponse] = useState<string | null>(null);
   const [isDebugDisabled, setIsDebugDisabled] = useState(true);
   const chatEndRef = useRef(null);
 
@@ -213,144 +212,6 @@ const Panel = ({
     setTimeComplexity('N/A');
     setOptimizedScore('0');
   };
-  
-  const handleDebug = async () => {
-      if (!isSubmissionsPage() || !problemContent) return;
-    
-      try {
-        const extractSubmissionFromPage = () => {
-          // Get submitted code from <code> block inside <pre>
-          const codeElement = document.querySelector('pre code.language-python');
-          let submittedCode = '';
-    
-          if (codeElement) {
-            submittedCode = Array.from(codeElement.childNodes)
-              .map(node => node.textContent || '')
-              .join('')
-              .trim();
-          } else {
-            const fallbackLines = Array.from(document.querySelectorAll('.view-lines > div'));
-            submittedCode = fallbackLines
-              .map(line => line.textContent || '')
-              .join('\n')
-              .trim();
-          }
-    
-          // Get error type (e.g., Runtime Error, Time Limit Exceeded, Wrong Answer)
-          const errorTypeElem = document.querySelector('h3[class*="text-red-6"], h3[class*="dark:text-red-60"]');
-          const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
-          const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
-    
-          // Get traceback or error message block
-          const tracebackElem = document.querySelector('div.font-menlo.whitespace-pre-wrap[class*="text-red"]');
-          const traceback = tracebackElem?.textContent?.trim() || '';
-    
-          // Get input, output, expected, and last executed input values
-          const labelElems = Array.from(document.querySelectorAll('div[class*="text-label"]'));
-          let inputValue = '';
-          let outputValue = '';
-          let expectedValue = '';
-          let lastExecutedInput = '';
-    
-          // Debug: Log all labels found to verify selector
-          console.log('Labels found:', labelElems.map(elem => elem.textContent?.trim()));
-    
-          for (let i = 0; i < labelElems.length; i++) {
-            const key = labelElems[i].textContent?.trim();
-            const normalizedKey = key?.toLowerCase() || '';
-    
-            if (normalizedKey === 'last executed input') {
-              // Find the wrapper that contains all variable rows under Last Executed Input
-              const wrapper = labelElems[i].closest('.flex.flex-col.space-y-2');
-              const groupBlocks = wrapper?.querySelectorAll('.group.relative.rounded-lg');
-            
-              let inputPairs: string[] = [];
-              groupBlocks?.forEach(group => {
-                const keyElem = group.querySelector('.text-label-3');
-                const valueElem = group.querySelector('.font-menlo');
-            
-                const keyRaw = keyElem?.textContent?.trim();
-                const value = valueElem?.textContent?.trim();
-            
-                // Clean key: remove trailing '=' and whitespace
-                const key = keyRaw?.replace(/\s*=\s*$/, '');
-            
-                if (key && value) {
-                  inputPairs.push(`${key} = ${value}`);
-                }
-              });
-            
-              lastExecutedInput = inputPairs.join('\n');
-            } else if (normalizedKey === 'input') {
-              let inputPairs = [];
-              i++; // move to next element after "Input"
-              while (i < labelElems.length) {
-                const nextKey = labelElems[i].textContent?.trim();
-                const nextNormalizedKey = nextKey?.toLowerCase() || '';
-            
-                if (nextNormalizedKey === 'output' || nextNormalizedKey === 'expected') {
-                  i--;
-                  break;
-                }
-            
-                // Skip value lines accidentally parsed as label elements
-                if (/^\[.*\]$/.test(nextKey) || /^".*"$/.test(nextKey) || /^[\d.]+$/.test(nextKey)) {
-                  i++;
-                  continue;
-                }
-            
-                const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-                const nextValue = nextValueElem?.textContent?.trim() || '';
-    
-                if (nextKey && nextValue) {
-                  const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
-                  inputPairs.push(`${cleanedKey} = ${nextValue}`);
-                }
-                i++;
-              }
-              inputValue = inputPairs.join('\n');
-
-            } else if (normalizedKey === 'output') {
-              const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-              outputValue = valueElem?.textContent?.trim() || '';
-            } else if (normalizedKey === 'expected') {
-              const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-              expectedValue = valueElem?.textContent?.trim() || '';
-            }
-          }
-    
-          // Construct full error description with conditional sections and traceback
-          let fullErrorDescription = `${errorType}`;
-          if (lastExecutedInput) {
-            fullErrorDescription += `\n\nLast Executed Input:\n${lastExecutedInput}`;
-          }
-          if (inputValue) {
-            fullErrorDescription += `\n\nInput:\n${inputValue}`;
-          }
-          if (outputValue) {
-            fullErrorDescription += `\n\nOutput:\n${outputValue}`;
-          }
-          if (expectedValue) {
-            fullErrorDescription += `\n\nExpected:\n${expectedValue}`;
-          }
-          if (traceback) {
-            fullErrorDescription += `\n\n${traceback}`;
-          }
-    
-          return { submittedCode, fullErrorDescription };
-        };
-    
-        const { submittedCode, fullErrorDescription } = extractSubmissionFromPage();
-        console.log('errorDescription:', fullErrorDescription);
-    
-        const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
-        setDebugResponse(debugResult);
-        setAiFeedback(debugResult || 'Debugging failed.');
-      } catch (error) {
-        console.error('[DEBUG] Failed:', error);
-        setAiFeedback('Error during debugging.');
-      }
-  };  
 
   useEffect(() => {
     document.body.style.overflow = isExpanded ? 'hidden' : '';
@@ -542,7 +403,7 @@ const Panel = ({
             <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
             <div className="flex gap-3">
               <button
-                onClick={handleDebug}
+                onClick={() => handleDebug(problemContent, setDebugResponse, setAiFeedback)} // Call the imported handleDebug
                 disabled={isDebugDisabled}
                 className={cn(
                   "px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
