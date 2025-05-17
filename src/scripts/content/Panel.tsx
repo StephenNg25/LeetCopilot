@@ -9,6 +9,9 @@ import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import ExpandedHintModal from './ExpandedHintChat';
+//Debug Patching for Suggestion Card
+import { DebugPatch, parsePatchResponse } from '@/utils/debugger';
+import FixSuggestionCard from './FixSuggestionCard';
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -56,9 +59,11 @@ const Panel = ({
   const [problemContent, setProblemContent] = useState<string | null>(null);
   const [thoughts, setThoughts] = useState('');
   const [aiFeedback, setAiFeedback] = useState('');
+  // New states for debugging
+  const [debugResponse, setDebugResponse] = useState<string | null>(null);
+  const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null);
   const [timeComplexity, setTimeComplexity] = useState('N/A');
   const [optimizedScore, setOptimizedScore] = useState('0');
-  const [debugResponse, setDebugResponse] = useState<string | null>(null);
   const [isDebugDisabled, setIsDebugDisabled] = useState(true);
   const chatEndRef = useRef(null);
 
@@ -218,6 +223,15 @@ const Panel = ({
     return () => { document.body.style.overflow = ''; };
   }, [isExpanded]);
 
+  // Parse debugResponse when it updates
+  useEffect(() => {
+    if (debugResponse) {
+      console.log('Received debugResponse:', debugResponse);
+      const parsed = parsePatchResponse(debugResponse);
+      console.log('Parsed debugPatch:', parsed);
+      if (parsed) setDebugPatch(parsed);
+    }
+  }, [debugResponse]);
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -271,6 +285,7 @@ const Panel = ({
               onChange={(e) => setThoughts(e.target.value)}
             />
             {aiFeedback && <div className="text-gray-500 text-sm mt-1">{aiFeedback}</div>}
+            {debugResponse && <div className="text-gray-500 text-sm mt-1">{debugResponse}</div>}
           </div>
         </div>
       </p>
@@ -398,12 +413,13 @@ const Panel = ({
               </>
             )}
           </div>
-
+          
+          {/* Debug button section */}
           <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200 flex-shrink-0">
             <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
             <div className="flex gap-3">
               <button
-                onClick={() => handleDebug(problemContent, setDebugResponse, setAiFeedback)} // Call the imported handleDebug
+                onClick={() => handleDebug(problemContent, setDebugResponse)} // Call the imported handleDebug
                 disabled={isDebugDisabled}
                 className={cn(
                   "px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
@@ -417,6 +433,28 @@ const Panel = ({
           </div>
         </div>
       </div>
+
+      {/* Inject FixSuggestionCard */}
+      {debugPatch && (
+            <FixSuggestionCard
+              original={debugPatch.original}
+              modified={debugPatch.modified}
+              explanation={debugPatch.explanation}
+              onAccept={() => {
+                // Replace original with modified — custom DOM logic here
+                setDebugPatch(null);
+                setIsDebugDisabled(true);
+              }}
+              onDiscard={() => {
+                setDebugPatch(null); // Keep debug enabled
+              }}
+              onAgain={async () => {
+                await handleDebug(problemContent, setDebugResponse);
+                // debugResponse update will trigger useEffect to parse again
+              }}
+            />
+       )}
+      
       {isExpanded && (
         <ExpandedHintModal
           onClose={() => setIsExpanded(false)}

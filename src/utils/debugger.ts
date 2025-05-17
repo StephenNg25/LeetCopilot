@@ -5,11 +5,7 @@ import { isSubmissionsPage } from '@/utils/browser';
 type SetStateAction<T> = React.Dispatch<React.SetStateAction<T>>;
 
 // export handleDebug function for use in Panel
-export const handleDebug = async (
-  problemContent: string | null,
-  setDebugResponse: SetStateAction<string | null>,
-  setAiFeedback: SetStateAction<string>
-) => {
+export const handleDebug = async ( problemContent: string | null, setDebugResponse: SetStateAction<string | null>) => {
     if (!isSubmissionsPage() || !problemContent) return;
     
     try {
@@ -139,10 +135,29 @@ export const handleDebug = async (
       console.log('errorDescription:', fullErrorDescription);
   
       const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
-      setDebugResponse(debugResult);
-      setAiFeedback(debugResult || 'Debugging failed.');
+      setDebugResponse(debugResult || 'Debugging failed.');
     } catch (error) {
       console.error('[DEBUG] Failed:', error);
-      setAiFeedback('Error during debugging.');
+      setDebugResponse('Error during debugging.');
     }
 };
+
+export interface DebugPatch {
+    original: string;
+    modified: string;
+    explanation: string;
+  }
+  
+  export function parsePatchResponse(raw: string): DebugPatch | null {
+    const originalMatch = raw.match(/### Original Snippet[\s\S]*?```python\s+([\s\S]*?)```/);
+    const modifiedMatch = raw.match(/### Modified Snippet[\s\S]*?```python\s+([\s\S]*?)```/);
+    const explanationMatch = raw.match(/### Diagnostic Explanation\n([\s\S]*?)(?=\n###|$)/);
+  
+    if (!originalMatch || !modifiedMatch || !explanationMatch) return null;
+  
+    return {
+      original: originalMatch[1].trim(),
+      modified: modifiedMatch[1].trim(),
+      explanation: explanationMatch[1].trim()
+    };
+  }
