@@ -10,7 +10,7 @@ import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import ExpandedHintModal from './ExpandedHintChat';
 // Debug Patching for Suggestion Card
-import { DebugPatch, parsePatchResponse } from '@/utils/debugger';
+import { parsePatchResponse } from '@/utils/debugger';
 import FixSuggestionCard from './FixSuggestionCard';
 
 const hintData = [
@@ -49,7 +49,13 @@ const Panel = ({
   userInput,
   setUserInput,
   isExpanded,
-  setIsExpanded
+  setIsExpanded,
+  debugResponse,
+  setDebugResponse,
+  debugPatch,
+  setDebugPatch,
+  isDebugDisabled,
+  setIsDebugDisabled
 }) => {
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
@@ -59,12 +65,8 @@ const Panel = ({
   const [problemContent, setProblemContent] = useState<string | null>(null);
   const [thoughts, setThoughts] = useState('');
   const [aiFeedback, setAiFeedback] = useState('');
-  // New states for debugging
-  const [debugResponse, setDebugResponse] = useState<string | null>(null);
-  const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null);
   const [timeComplexity, setTimeComplexity] = useState('N/A');
   const [optimizedScore, setOptimizedScore] = useState('0');
-  const [isDebugDisabled, setIsDebugDisabled] = useState(true);
   const [cardHeight, setCardHeight] = useState<number>(0); // Initial height (collapsed)
   const chatEndRef = useRef(null);
   const fixCardRef = useRef<HTMLDivElement>(null); // Ref to measure FixSuggestionCard content height
@@ -118,7 +120,7 @@ const Panel = ({
     observer.observe(document.body, { childList: true, subtree: true });
   
     return () => observer.disconnect();
-  }, []);
+  }, [setIsDebugDisabled]);
 
   const currentLanguage = languages[languageIndex];
 
@@ -225,7 +227,7 @@ const Panel = ({
     return () => { document.body.style.overflow = ''; };
   }, [isExpanded]);
 
-  // Parse debugResponse when it updates and trigger slide-up animation
+  // Parse debugResponse when it updates
   useEffect(() => {
     if (debugResponse) {
       console.log('Received debugResponse:', debugResponse);
@@ -233,16 +235,17 @@ const Panel = ({
       console.log('Parsed debugPatch:', parsed);
       if (parsed) {
         setDebugPatch(parsed);
-        // Set initial card height to the content height or a default value
-        if (fixCardRef.current) {
-          const contentHeight = fixCardRef.current.scrollHeight;
-          setCardHeight(contentHeight); // Set to exact content height initially
-        } else {
-          setCardHeight(200); // Fallback default
-        }
       }
     }
-  }, [debugResponse]);
+  }, [debugResponse, setDebugPatch]);
+
+  // Set card height when debugPatch is set and fixCardRef is available
+  useEffect(() => {
+    if (debugPatch && fixCardRef.current) {
+      const contentHeight = fixCardRef.current.scrollHeight;
+      setCardHeight(contentHeight); // Set to exact content height
+    }
+  }, [debugPatch]);
 
   // Draggable card height adjustment
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -479,7 +482,7 @@ const Panel = ({
           <div
             style={{
               position: 'absolute',
-              bottom: 0, // Fix the bottom edge to the panel's bottom (within 10px gap)
+              bottom: '10px', // Fix the bottom edge to the panel's bottom (within 10px gap)
               left: 0,
               right: 0,
               height: `${cardHeight}px`, // Card height controlled by dragging
@@ -497,7 +500,7 @@ const Panel = ({
                   setDebugPatch(null);
                   setDebugResponse(null); // Reset debug response
                   setCardHeight(0); // Collapse the card
-                  setIsDebugDisabled(true);
+                  setIsDebugDisabled(true); // Disable DEBUG button
                 }}
                 onDiscard={() => {
                   setDebugPatch(null); // Keep debug enabled
@@ -515,7 +518,7 @@ const Panel = ({
             onMouseDown={handleMouseDown}
             style={{
               position: 'absolute',
-              bottom: `${cardHeight}px`, // Position splitter bar at the top of the card
+              bottom: `${cardHeight + 10}px`, // Position splitter bar at the top of the card
               left: 0,
               right: 0,
               height: '15px', // Splitter bar height fits within the 10px gap when collapsed

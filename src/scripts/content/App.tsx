@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Panel from './Panel'
 import LCPLogo from '@/assets/LCP.png'
-
+import { DebugPatch} from '@/utils/debugger';
 const App = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
@@ -18,6 +18,10 @@ const App = () => {
   const [totalAssistance, setTotalAssistance] = useState(0)
   const [userInput, setUserInput] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
+  // Lifted debug states from Panel to App
+  const [debugResponse, setDebugResponse] = useState<string | null>(null)
+  const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null)
+  const [isDebugDisabled, setIsDebugDisabled] = useState(true)
 
   const togglePanel = () => setIsPanelOpen(prev => !prev)
 
@@ -109,6 +113,12 @@ const App = () => {
           setUserInput={setUserInput}
           isExpanded={isExpanded}
           setIsExpanded={setIsExpanded}
+          debugResponse={debugResponse}
+          setDebugResponse={setDebugResponse}
+          debugPatch={debugPatch}
+          setDebugPatch={setDebugPatch}
+          isDebugDisabled={isDebugDisabled}
+          setIsDebugDisabled={setIsDebugDisabled}
         />
       )}
     </>
