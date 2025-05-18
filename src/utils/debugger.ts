@@ -149,15 +149,24 @@ export interface DebugPatch {
   }
   
   export function parsePatchResponse(raw: string): DebugPatch | null {
-    const originalMatch = raw.match(/### Original Snippet[\s\S]*?```python\s+([\s\S]*?)```/);
-    const modifiedMatch = raw.match(/### Modified Snippet[\s\S]*?```python\s+([\s\S]*?)```/);
-    const explanationMatch = raw.match(/### Diagnostic Explanation\n([\s\S]*?)(?=\n###|$)/);
+    const originalMatch = raw.match(/#*\s?Original Snippet:[\s\S]*?```python\s+([\s\S]*?)(?=\n```|$)/i);
+    const modifiedMatch = raw.match(/#*\s?Modified Snippet:[\s\S]*?```python\s+([\s\S]*?)(?=\n```|$)/i);
+    const explanationMatch = raw.match(/#*\s?Diagnostic Explanation:[\s\S]*$/i);
   
-    if (!originalMatch || !modifiedMatch || !explanationMatch) return null;
+    if (!originalMatch || !modifiedMatch) return null; // Require only original and modified to be present
+  
+    let explanation = '';
+    if (explanationMatch) {
+      explanation = explanationMatch[0].split(/#*\s?Diagnostic Explanation:/i)[1].trim() || '';
+    } else {
+      // Fallback: Extract text after modified snippet until the end
+      const modifiedEndIndex = modifiedMatch.index! + modifiedMatch[0].length;
+      explanation = raw.substring(modifiedEndIndex).trim();
+    }
   
     return {
       original: originalMatch[1].trim(),
       modified: modifiedMatch[1].trim(),
-      explanation: explanationMatch[1].trim()
+      explanation: explanation
     };
   }

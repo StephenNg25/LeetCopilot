@@ -9,7 +9,7 @@ import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import ExpandedHintModal from './ExpandedHintChat';
-//Debug Patching for Suggestion Card
+// Debug Patching for Suggestion Card
 import { DebugPatch, parsePatchResponse } from '@/utils/debugger';
 import FixSuggestionCard from './FixSuggestionCard';
 
@@ -65,7 +65,9 @@ const Panel = ({
   const [timeComplexity, setTimeComplexity] = useState('N/A');
   const [optimizedScore, setOptimizedScore] = useState('0');
   const [isDebugDisabled, setIsDebugDisabled] = useState(true);
+  const [cardHeight, setCardHeight] = useState<number>(0); // Initial height (collapsed)
   const chatEndRef = useRef(null);
+  const fixCardRef = useRef<HTMLDivElement>(null); // Ref to measure FixSuggestionCard content height
 
   const isHintUnlocked = unlockedHints.has(activeHint);
 
@@ -223,15 +225,52 @@ const Panel = ({
     return () => { document.body.style.overflow = ''; };
   }, [isExpanded]);
 
-  // Parse debugResponse when it updates
+  // Parse debugResponse when it updates and trigger slide-up animation
   useEffect(() => {
     if (debugResponse) {
       console.log('Received debugResponse:', debugResponse);
       const parsed = parsePatchResponse(debugResponse);
       console.log('Parsed debugPatch:', parsed);
-      if (parsed) setDebugPatch(parsed);
+      if (parsed) {
+        setDebugPatch(parsed);
+        // Set initial card height to the content height or a default value
+        if (fixCardRef.current) {
+          const contentHeight = fixCardRef.current.scrollHeight;
+          setCardHeight(contentHeight); // Set to exact content height initially
+        } else {
+          setCardHeight(200); // Fallback default
+        }
+      }
     }
   }, [debugResponse]);
+
+  // Draggable card height adjustment
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const startY = e.clientY;
+    const startHeight = cardHeight;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Calculate new height based on drag direction (invert drag for intuitive resizing)
+      const deltaY = startHeight - (e.clientY - startY);
+      let newHeight = Math.max(0, deltaY); // Ensure height doesn't go negative
+      if (fixCardRef.current) {
+        const contentHeight = fixCardRef.current.scrollHeight;
+        const panelMaxHeight = window.innerHeight - 40; // 10px top + 10px bottom + 10px splitter + 10px buffer
+        // Cap the height at the content height or panel max height, whichever is smaller
+        newHeight = Math.min(contentHeight, panelMaxHeight, newHeight);
+      }
+      setCardHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -240,7 +279,7 @@ const Panel = ({
         right: '10px', 
         bottom: '10px', 
         width: '600px', 
-        maxHeight: 'calc(100% - 30px)',
+        maxHeight: 'calc(100% - 20px)', // Adjusted to account for splitter bar
         overflowY: 'auto'
       }}
     >
@@ -434,26 +473,60 @@ const Panel = ({
         </div>
       </div>
 
-      {/* Inject FixSuggestionCard */}
+      {/* Inject FixSuggestionCard with resizable height */}
       {debugPatch && (
-            <FixSuggestionCard
-              original={debugPatch.original}
-              modified={debugPatch.modified}
-              explanation={debugPatch.explanation}
-              onAccept={() => {
-                // Replace original with modified — custom DOM logic here
-                setDebugPatch(null);
-                setIsDebugDisabled(true);
-              }}
-              onDiscard={() => {
-                setDebugPatch(null); // Keep debug enabled
-              }}
-              onAgain={async () => {
-                await handleDebug(problemContent, setDebugResponse);
-                // debugResponse update will trigger useEffect to parse again
-              }}
-            />
-       )}
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0, // Fix the bottom edge to the panel's bottom (within 10px gap)
+              left: 0,
+              right: 0,
+              height: `${cardHeight}px`, // Card height controlled by dragging
+              transition: 'height 0s cubic-bezier(0.25, 0.1, 0.25, 1)', // Smoother transition
+            }}
+            className="bg-white border border-b-0 rounded-t-md shadow-lg z-[1000] overflow-hidden"
+          >
+            <div ref={fixCardRef} className="h-full overflow-y-auto p-3 space-y-2" style={{ minHeight: 0 }}>
+              <FixSuggestionCard
+                original={debugPatch.original}
+                modified={debugPatch.modified}
+                explanation={debugPatch.explanation}
+                onAccept={() => {
+                  // Replace original with modified — custom DOM logic here
+                  setDebugPatch(null);
+                  setDebugResponse(null); // Reset debug response
+                  setCardHeight(0); // Collapse the card
+                  setIsDebugDisabled(true);
+                }}
+                onDiscard={() => {
+                  setDebugPatch(null); // Keep debug enabled
+                  setDebugResponse(null); // Reset debug response
+                  setCardHeight(0); // Collapse the card
+                }}
+                onAgain={async () => {
+                  await handleDebug(problemContent, setDebugResponse);
+                  // debugResponse update will trigger useEffect to parse again
+                }}
+              />
+            </div>
+          </div>
+          <div
+            onMouseDown={handleMouseDown}
+            style={{
+              position: 'absolute',
+              bottom: `${cardHeight}px`, // Position splitter bar at the top of the card
+              left: 0,
+              right: 0,
+              height: '15px', // Splitter bar height fits within the 10px gap when collapsed
+              transition: 'bottom 0s cubic-bezier(0.25, 0.1, 0.25, 1)', // Smoother transition
+            }}
+            className="bg-gray-300 cursor-ns-resize flex items-center justify-center z-[1001]"
+          >
+            <div className="w-6 h-1 bg-gray-400 rounded-full"></div>
+          </div>
+        </>
+      )}
       
       {isExpanded && (
         <ExpandedHintModal
