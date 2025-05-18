@@ -55,7 +55,9 @@ const Panel = ({
   debugPatch,
   setDebugPatch,
   isDebugDisabled,
-  setIsDebugDisabled
+  setIsDebugDisabled,
+  manualDebugDisabled,            // 👈 add this
+  setManualDebugDisabled 
 }) => {
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
@@ -107,10 +109,11 @@ const Panel = ({
 
   useEffect(() => {
     const checkDebugEligibility = () => {
+      if (manualDebugDisabled) return; // 👈 do not override manual disable
       const isSubmission = isSubmissionsPage();
       const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
       const isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
-    
+  
       setIsDebugDisabled(!isSubmission || isAccepted);
     };
   
@@ -120,7 +123,8 @@ const Panel = ({
     observer.observe(document.body, { childList: true, subtree: true });
   
     return () => observer.disconnect();
-  }, [setIsDebugDisabled]);
+  }, [manualDebugDisabled, setIsDebugDisabled]);
+  
 
   const currentLanguage = languages[languageIndex];
 
@@ -482,7 +486,7 @@ const Panel = ({
           <div
             style={{
               position: 'absolute',
-              bottom: '10px', // Fix the bottom edge to the panel's bottom (within 10px gap)
+              bottom: 0, // Fix the bottom edge to the panel's bottom (within 10px gap)
               left: 0,
               right: 0,
               height: `${cardHeight}px`, // Card height controlled by dragging
@@ -501,6 +505,7 @@ const Panel = ({
                   setDebugResponse(null); // Reset debug response
                   setCardHeight(0); // Collapse the card
                   setIsDebugDisabled(true); // Disable DEBUG button
+                  setManualDebugDisabled(true); 
                 }}
                 onDiscard={() => {
                   setDebugPatch(null); // Keep debug enabled
@@ -518,7 +523,7 @@ const Panel = ({
             onMouseDown={handleMouseDown}
             style={{
               position: 'absolute',
-              bottom: `${cardHeight + 10}px`, // Position splitter bar at the top of the card
+              bottom: `${cardHeight}px`, // Position splitter bar at the top of the card
               left: 0,
               right: 0,
               height: '15px', // Splitter bar height fits within the 10px gap when collapsed

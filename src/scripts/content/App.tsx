@@ -22,7 +22,7 @@ const App = () => {
   const [debugResponse, setDebugResponse] = useState<string | null>(null)
   const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null)
   const [isDebugDisabled, setIsDebugDisabled] = useState(true)
-
+  const [manualDebugDisabled, setManualDebugDisabled] = useState(false)
   const togglePanel = () => setIsPanelOpen(prev => !prev)
 
   useEffect(() => {
@@ -119,6 +119,8 @@ const App = () => {
           setDebugPatch={setDebugPatch}
           isDebugDisabled={isDebugDisabled}
           setIsDebugDisabled={setIsDebugDisabled}
+          manualDebugDisabled={manualDebugDisabled} // 👈 NEW
+          setManualDebugDisabled={setManualDebugDisabled} // 👈 NEW
         />
       )}
     </>
