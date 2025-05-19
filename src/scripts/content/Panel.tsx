@@ -12,6 +12,7 @@ import ExpandedHintModal from './ExpandedHintChat';
 // Debug Patching for Suggestion Card
 import { parsePatchResponse } from '@/utils/debugger';
 import FixSuggestionCard from './FixSuggestionCard';
+import ErrorDisplay from './ErrorDisplay';
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -69,10 +70,11 @@ const Panel = ({
   const [aiFeedback, setAiFeedback] = useState('');
   const [timeComplexity, setTimeComplexity] = useState('N/A');
   const [optimizedScore, setOptimizedScore] = useState('0');
-  const [cardHeight, setCardHeight] = useState<number>(0); // Initial height (collapsed)
+  const [cardHeight, setCardHeight] = useState<number>(0); 
   const chatEndRef = useRef(null);
-  const fixCardRef = useRef<HTMLDivElement>(null); // Ref to measure FixSuggestionCard content height
-
+  const fixCardRef = useRef<HTMLDivElement>(null);
+  const [parsed, setParsed] = useState(null);
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
   const isHintUnlocked = unlockedHints.has(activeHint);
 
   const scrollLeft = () => setLanguageIndex(prev => Math.max(prev - 1, 0));
@@ -109,7 +111,7 @@ const Panel = ({
 
   useEffect(() => {
     const checkDebugEligibility = () => {
-      if (manualDebugDisabled) return; // 👈 do not override manual disable
+      if (manualDebugDisabled) return; 
       const isSubmission = isSubmissionsPage();
       const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
       const isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
@@ -236,12 +238,25 @@ const Panel = ({
     if (debugResponse) {
       console.log('Received debugResponse:', debugResponse);
       const parsed = parsePatchResponse(debugResponse);
+      setParsed(parsed); // Simulate a failed parse
+      setIsErrorVisible(true); // Show the error display
       console.log('Parsed debugPatch:', parsed);
       if (parsed) {
         setDebugPatch(parsed);
       }
     }
   }, [debugResponse, setDebugPatch]);
+
+  //Displaying Error Message for only 5s
+  useEffect(() => {
+    if (isErrorVisible) {
+      const timer = setTimeout(() => {
+        setIsErrorVisible(false); // Hide the error display after 5 seconds
+      }, 5000);
+
+      return () => clearTimeout(timer); // Clear the timer if the component unmounts or `isErrorVisible` changes
+    }
+  }, [isErrorVisible]);
 
   // Set card height when debugPatch is set and fixCardRef is available
   useEffect(() => {
@@ -286,7 +301,7 @@ const Panel = ({
         right: '10px', 
         bottom: '10px', 
         width: '600px', 
-        maxHeight: 'calc(100% - 20px)', // Adjusted to account for splitter bar
+        maxHeight: 'calc(100% - 30px)', 
         overflowY: 'auto'
       }}
     >
@@ -535,7 +550,7 @@ const Panel = ({
           </div>
         </>
       )}
-      
+      {debugResponse !== null && parsed === null && <ErrorDisplay isVisible={isErrorVisible} onDismiss={() => setIsErrorVisible(false)} />}
       {isExpanded && (
         <ExpandedHintModal
           onClose={() => setIsExpanded(false)}

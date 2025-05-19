@@ -18,7 +18,7 @@
     background-clip: content-box;
   }
 
-  /* Spinning Loading Screen */
+/* Spinning Loading Screen */
 @keyframes spin {
     100% {
         transform: rotate(360deg);
@@ -30,4 +30,32 @@
     mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 100%);
     animation: spin 1s linear infinite;
 }
-  
+
+/* Debug Error Message Animation */
+@keyframes slide-in-shake {
+  0% {
+    transform: translateX(100%); /* Start off-screen to the right */
+  }
+  50% {
+    transform: translateX(0); /* Slide into position */
+  }
+  60% {
+    transform: translateX(-10px); /* Shake left */
+  }
+  70% {
+    transform: translateX(10px); /* Shake right */
+  }
+  80% {
+    transform: translateX(-5px); /* Shake left */
+  }
+  90% {
+    transform: translateX(5px); /* Shake right */
+  }
+  100% {
+    transform: translateX(0); /* Stay still */
+  }
+}
+
+.animate-slide-in-shake {
+  animation: slide-in-shake 0.8s ease-in-out; /* Adjust duration as needed */
+}
