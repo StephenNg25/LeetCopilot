@@ -12,7 +12,7 @@ return (
             isVisible ? 'animate-slide-in-shake' : 'translate-x-[calc(100%+1rem)]'
         }`}
         style={{ 
-            bottom: '100px', 
+            bottom: '110px', 
             maxWidth: '600px'
         }}
     >

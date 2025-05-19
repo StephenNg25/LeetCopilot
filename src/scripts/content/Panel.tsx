@@ -243,6 +243,13 @@ const Panel = ({
       console.log('Parsed debugPatch:', parsed);
       if (parsed) {
         setDebugPatch(parsed);
+        setCardHeight(0); // collapse before measuring
+        setTimeout(() => {
+          if (fixCardRef.current) {
+            const newHeight = fixCardRef.current.scrollHeight;
+            setCardHeight(newHeight);
+          }
+        }, 30); // just enough for layout paint
       }
     }
   }, [debugResponse, setDebugPatch]);
@@ -262,7 +269,9 @@ const Panel = ({
   useEffect(() => {
     if (debugPatch && fixCardRef.current) {
       const contentHeight = fixCardRef.current.scrollHeight;
+      console.log('[useEffect] contentHeight:', contentHeight); // Log contentHeight
       setCardHeight(contentHeight); // Set to exact content height
+      console.log('[useEffect] cardHeight updated to:', contentHeight); // Log updated cardHeight
     }
   }, [debugPatch]);
 
