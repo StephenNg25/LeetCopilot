@@ -238,18 +238,22 @@ const Panel = ({
     if (debugResponse) {
       console.log('Received debugResponse:', debugResponse);
       const parsed = parsePatchResponse(debugResponse);
-      setParsed(parsed); // Simulate a failed parse
-      setIsErrorVisible(true); // Show the error display
+      setParsed(parsed);
+      setIsErrorVisible(true);
       console.log('Parsed debugPatch:', parsed);
       if (parsed) {
         setDebugPatch(parsed);
-        setCardHeight(0); // collapse before measuring
+        setCardHeight(0); // Collapse first
+
         setTimeout(() => {
           if (fixCardRef.current) {
-            const newHeight = fixCardRef.current.scrollHeight;
-            setCardHeight(newHeight);
+            const contentHeight = fixCardRef.current.scrollHeight;
+            const panelMaxHeight = window.innerHeight - 120; // Subtract header/padding space
+            const boundedHeight = Math.min(contentHeight, panelMaxHeight);
+            setCardHeight(boundedHeight);
+            console.log('[FixCard] setCardHeight to bounded:', boundedHeight);
           }
-        }, 30); // just enough for layout paint
+        }, 30); // Wait for DOM update
       }
     }
   }, [debugResponse, setDebugPatch]);
