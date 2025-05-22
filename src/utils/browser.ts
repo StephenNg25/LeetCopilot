@@ -36,4 +36,3 @@ export const sendMessageToContentScript = async (message: any): Promise<any> => 
         return null
     }
 }
-

@@ -2,7 +2,7 @@ import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
-import { isSubmissionsPage, cn } from '@/utils/browser';
+import { isSubmissionsPage, isLeetCodeProblemPage, cn } from '@/utils/browser';
 import { handleDebug } from '@/utils/debugger'; 
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
@@ -36,6 +36,13 @@ const getHintLevel = (percent: number): number => {
 };
 
 const ERROR_MESSAGE = "I’m sorry, I can only assist based on the current hint.";
+//Injecting Script for Sellecting All Monaco Editor (monaco-select-all.js)
+function injectScriptBySrc(srcPath: string) {
+  const script = document.createElement('script');
+  script.src = chrome.runtime.getURL(srcPath);
+  script.onload = () => script.remove();
+  (document.head || document.documentElement).appendChild(script);
+}
 
 const Panel = ({
   onClose,
@@ -57,7 +64,7 @@ const Panel = ({
   setDebugPatch,
   isDebugDisabled,
   setIsDebugDisabled,
-  manualDebugDisabled,            // 👈 add this
+  manualDebugDisabled,            
   setManualDebugDisabled 
 }) => {
   const [tab, setTab] = useState('Problem');
@@ -88,7 +95,6 @@ const Panel = ({
       default: return 'text-gray-500';
     }
   };
-
   useEffect(() => {
     const titleSlug = window.location.pathname.split('/')[2];
     const getProblemInfo = async () => {
@@ -527,24 +533,115 @@ const Panel = ({
                 original={debugPatch.original}
                 modified={debugPatch.modified}
                 explanation={debugPatch.explanation}
-                onAccept={() => {
-                  // Replace original with modified — custom DOM logic here
-                  setDebugPatch(null);
-                  setDebugResponse(null); // Reset debug response
-                  setCardHeight(0); // Collapse the card
-                  setIsDebugDisabled(true); // Disable DEBUG button
-                  setManualDebugDisabled(true); 
+                
+                onAccept={async () => {
+                  try {
+                    const modifiedCode = debugPatch?.modified?.trim();
+                    if (!modifiedCode) {
+                      console.log('No debug patch available.');
+                      alert("No debug patch available.");
+                      return;
+                    }
+                
+                    // Check if we're on a supported page
+                    const isSubmissionsPage = /^https:\/\/leetcode\.com\/problems\/[^/]+\/submissions\/[^/]+\/?(?:\?.*)?$/.test(window.location.href);
+                
+                    if (!isSubmissionsPage && !isLeetCodeProblemPage) {
+                      throw new Error("Code injection can only be performed on a LeetCode problem or submissions page.");
+                    }
+                
+                    // Function to find the Monaco Editor instance
+                    const findMonacoEditor = async () => {
+                      return new Promise<any>((resolve, reject) => {
+                        let observer: MutationObserver | null = null;
+              
+                        const editorContainer = document.querySelector('#editor') ||
+                                                document.querySelector('.monaco-scrollable-element.editor-scrollable.vs-dark');
+                        if (editorContainer) {
+                          console.log('Editor container found:', editorContainer);
+                          const textarea = editorContainer.querySelector('.inputarea') ||
+                                            editorContainer.querySelector('textarea');
+                          if (textarea) {
+                            console.log('Found textarea:', textarea);
+                            if (observer) observer.disconnect();
+                            resolve({ type: 'textarea', value: textarea });
+                            return;
+                          }
+                        };
+                      });
+                    };
+                
+                    // Attempt to find the editor
+                    const result = await findMonacoEditor();
+                    
+                
+                    if (result.type === 'textarea') {
+                      const textarea = result.value;
+                      console.log('Textarea found, initial value:', textarea.value);
+                      // Force clear with a comprehensive event sequence
+                      textarea.focus();
+                      injectScriptBySrc('js/monaco-select-all.js'); // Select all content
+                      await new Promise(resolve => setTimeout(resolve, 500));
+
+                      // Inject the new code (this part works, so keep it as is)
+                      const clipboardData = new DataTransfer();
+                      clipboardData.setData('text/plain', modifiedCode);
+                      const pasteEvent = new ClipboardEvent('paste', {
+                        clipboardData: clipboardData,
+                        bubbles: true,
+                        cancelable: true
+                      });
+                      
+                      textarea.value = modifiedCode;
+                      
+                      textarea.dispatchEvent(pasteEvent);
+                      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                      textarea.dispatchEvent(new Event('focus', { bubbles: true }));
+                      console.log('Textarea after injection:', textarea.value);
+              
+                      // Add a delay to allow rendering
+                      await new Promise(resolve => setTimeout(resolve, 300));
+              
+                      // Verify the final state
+                      console.log('Textarea final value:', textarea.value);
+              
+                      // Check the editor view
+                      const viewLines = document.querySelector('.view-lines');
+                      if (viewLines) {
+                        console.log('View lines content:', viewLines.textContent);
+                        if (viewLines.textContent !== modifiedCode) {
+                          console.warn('Editor view does not match textarea value:', viewLines.textContent);
+                        }
+                      } else {
+                        console.warn('View lines not found.');
+                      }
+                      
+                    } else {
+                      throw new Error("Unknown result type or editor not found");
+                    }
+                
+                    // Reset debug state
+                    setDebugPatch(null);
+                    setDebugResponse(null);
+                    setCardHeight(0);
+                    setIsDebugDisabled(true);
+                    setManualDebugDisabled(true);
+                
+                    alert("Code successfully injected into the editor!");
+                  } catch (error) {
+                    console.error('Failed to inject debug patch:', error);
+                    alert(`Failed to inject code: ${(error as Error).message}. Please try again or check the console for more details.`);
+                  }
                 }}
-                onDiscard={() => {
-                  setDebugPatch(null); // Keep debug enabled
-                  setDebugResponse(null); // Reset debug response
-                  setCardHeight(0); // Collapse the card
-                }}
+                
+              
                 onAgain={async () => {
                   await handleDebug(problemContent, setDebugResponse);
                   // debugResponse update will trigger useEffect to parse again
-                }}
-              />
+                } } onDiscard={function (): void {
+                  throw new Error('Function not implemented.');
+                } }              />
             </div>
           </div>
           <div

@@ -69,7 +69,7 @@ const createBaseManifest = async (): Promise<Manifest> => {
                 48: './assets/LC_48.png',
                 128: './assets/LC_128.png'
             },
-            permissions: ["storage", "tabs"],
+            permissions: ["storage", "tabs", "scripting"],
             host_permissions: [
                 "https://leetcode.com/*"
             ],
@@ -96,21 +96,21 @@ const createBaseManifest = async (): Promise<Manifest> => {
 
 const getManifest = async (resources: string[]): Promise<Manifest> => {
     try {
-        const baseManifest = await createBaseManifest()
-        return {
-            ...baseManifest,
-            web_accessible_resources: [
-                {
-                    matches: ['https://*/*', 'http://*/*'],
-                    resources
-                }
-            ]
-        }
+      const baseManifest = await createBaseManifest()
+      return {
+        ...baseManifest,
+        web_accessible_resources: [
+          {
+            matches: ['https://*/*', 'http://*/*'],
+            resources: resources.map(r => r.replace(/^dist\//, '')) // remove 'dist/' prefix, only keep 'js/'
+          }
+        ]
+      }
     } catch (error) {
-        console.error('Error creating manifest:', error)
-        throw error
+      console.error('Error creating manifest:', error)
+      throw error
     }
-}
+  }
 
 const readJsFiles = async (dir: string): Promise<string[]> => {
     try {
