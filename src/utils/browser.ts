@@ -6,6 +6,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const isExactLeetCodeProblemPage = () => {
+    // Match exactly https://leetcode.com/problems/problem-title/ or https://leetcode.com/problems/problem-title
+    const pattern = /^https:\/\/leetcode\.com\/problems\/[^/]+\/?$/;
+    return pattern.test(window.location.href);
+};
+
 export const isLeetCodeProblemPage = () => {
     return /^https:\/\/leetcode\.com\/problems\/[^/]+/.test(window.location.href)
 }

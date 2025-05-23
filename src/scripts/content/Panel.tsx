@@ -2,7 +2,7 @@ import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
-import { isSubmissionsPage, isLeetCodeProblemPage, cn } from '@/utils/browser';
+import { isSubmissionsPage, isLeetCodeProblemPage, isExactLeetCodeProblemPage, cn } from '@/utils/browser';
 import { handleDebug } from '@/utils/debugger'; 
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
@@ -73,8 +73,6 @@ const Panel = ({
   setDebugPatch,
   isDebugDisabled,
   setIsDebugDisabled,
-  manualDebugDisabled,            
-  setManualDebugDisabled 
 }) => {
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
@@ -122,7 +120,6 @@ const Panel = ({
 
   useEffect(() => {
     const checkDebugEligibility = () => {
-      if (manualDebugDisabled) return; 
       const isSubmission = isSubmissionsPage();
       const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
       const isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
@@ -136,7 +133,38 @@ const Panel = ({
     observer.observe(document.body, { childList: true, subtree: true });
   
     return () => observer.disconnect();
-  }, [manualDebugDisabled, setIsDebugDisabled]);
+  }, [setIsDebugDisabled]);
+
+  useEffect(() => {
+    const checkDebugEligibility = () => {
+      const isSubmission = isSubmissionsPage();
+      const isProblemPage = isExactLeetCodeProblemPage(); 
+
+      let isAccepted = false;
+      let hasResult = false;
+
+      if (isSubmission) {
+        const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
+        isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
+      } else if (isProblemPage) {
+        const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
+        hasResult = !!consoleResultElem; // Check if the element exists
+        isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
+    }
+  
+      // Enable DEBUG only if:
+      // 1. On a submissions page AND not accepted, OR
+      // 2. On the exact problem page AND not accepted
+      setIsDebugDisabled(!((isSubmission && !isAccepted) || (isProblemPage && hasResult && !isAccepted)));
+    };
+  
+    checkDebugEligibility();
+  
+    const observer = new MutationObserver(checkDebugEligibility);
+    observer.observe(document.body, { childList: true, subtree: true });
+  
+    return () => observer.disconnect();
+  }, [setIsDebugDisabled]);
   
 
   const currentLanguage = languages[languageIndex];
@@ -642,8 +670,6 @@ const Panel = ({
                     setDebugPatch(null);
                     setDebugResponse(null);
                     setCardHeight(0);
-                    setIsDebugDisabled(true);
-                    setManualDebugDisabled(true);
                   } catch (error) {
                     console.error('Failed to inject debug patch:', error);
                     alert(`Failed to inject code: ${(error as Error).message}. Please try again or check the console for more details.`);

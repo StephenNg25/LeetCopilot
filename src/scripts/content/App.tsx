@@ -30,7 +30,6 @@ const App = () => {
   const [debugResponse, setDebugResponse] = useState<string | null>(null)
   const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null)
   const [isDebugDisabled, setIsDebugDisabled] = useState(true)
-  const [manualDebugDisabled, setManualDebugDisabled] = useState(false)
 
   //resetStates for "↻"
   const resetStates = () => {
@@ -43,7 +42,6 @@ const App = () => {
     setDebugResponse(null);
     setDebugPatch(null);
     setIsDebugDisabled(true);
-    setManualDebugDisabled(false);
     setThoughts('');
     setAiFeedback('');
     setTimeComplexity('N/A');
@@ -68,7 +66,6 @@ const App = () => {
       debugResponse,
       debugPatch,
       isDebugDisabled,
-      manualDebugDisabled,
       thoughts,
       aiFeedback,
       timeComplexity,
@@ -92,7 +89,6 @@ const App = () => {
         setDebugResponse(storedState.debugResponse)
         setDebugPatch(storedState.debugPatch)
         setIsDebugDisabled(storedState.isDebugDisabled)
-        setManualDebugDisabled(storedState.manualDebugDisabled)
         setThoughts(storedState.thoughts)
         setAiFeedback(storedState.aiFeedback)
         setTimeComplexity(storedState.timeComplexity)
@@ -131,7 +127,7 @@ const App = () => {
     if (currentProblemKey) {
       saveState(currentProblemKey)
     }
-  }, [activeHint, hintMessages, unlockedHints, totalAssistance, userInput, isExpanded, debugResponse, debugPatch, isDebugDisabled, manualDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore])
+  }, [activeHint, hintMessages, unlockedHints, totalAssistance, userInput, isExpanded, debugResponse, debugPatch, thoughts, aiFeedback, timeComplexity, optimizedScore])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -236,8 +232,6 @@ const App = () => {
           setDebugPatch={setDebugPatch}
           isDebugDisabled={isDebugDisabled}
           setIsDebugDisabled={setIsDebugDisabled}
-          manualDebugDisabled={manualDebugDisabled}
-          setManualDebugDisabled={setManualDebugDisabled}
         />
       )}
     </>
