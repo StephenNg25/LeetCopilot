@@ -46,6 +46,15 @@ function injectScriptBySrc(srcPath: string) {
 
 const Panel = ({
   onClose,
+  onReset,
+  thoughts,
+  setThoughts,
+  aiFeedback,
+  setAiFeedback,
+  timeComplexity,
+  setTimeComplexity, 
+  optimizedScore,
+  setOptimizedScore,
   activeHint,
   setActiveHint,
   hintMessages,
@@ -73,10 +82,6 @@ const Panel = ({
   const [difficulty, setDifficulty] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [problemContent, setProblemContent] = useState<string | null>(null);
-  const [thoughts, setThoughts] = useState('');
-  const [aiFeedback, setAiFeedback] = useState('');
-  const [timeComplexity, setTimeComplexity] = useState('N/A');
-  const [optimizedScore, setOptimizedScore] = useState('0');
   const [cardHeight, setCardHeight] = useState<number>(0); 
   const chatEndRef = useRef(null);
   const fixCardRef = useRef<HTMLDivElement>(null);
@@ -189,12 +194,23 @@ const Panel = ({
 
   const handleUnlockHint = async (percent: number) => {
     try {
+      const languageMap = {
+        'Python': 'Python',
+        'C++': 'C++',
+        'Java': 'Java',
+      };
       const titleSlug = window.location.pathname.split('/')[2];
       const problemContentData = await fetchProblemContent(titleSlug);
       if (!problemContentData || !problemContentData.content) return;
       const problemContent = problemContentData.content;
+      const codeSnippets = problemContentData.codeSnippets;
+      console.log("codeSnippets", codeSnippets);
+      const selectedLang = languageMap[currentLanguage];
+      console.log("language:", selectedLang);
+      const codeTemplate = codeSnippets.find(snippet => snippet.lang === selectedLang)?.code || null;
+      console.log("code template:", codeTemplate);
       setProblemContent(problemContent);
-      const hintMessage = await fetchHintFromGroq(percent, problemContent);
+      const hintMessage = await fetchHintFromGroq(percent, problemContent, codeTemplate);
 
       setHintMessages(prev => ({
         ...prev,
@@ -327,7 +343,11 @@ const Panel = ({
       <div className="border-b border-gray-200 pb-3 flex-shrink-0">
         <div className="flex justify-between items-start mb-2">
           <img src={WLCPLogo} alt="LeetCopilot" className="h-10 w-auto object-contain pointer-events-none" />
-          <button onClick={onClose} className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100">✕</button>
+          <div className="flex gap-2">
+            <button onClick={onReset} className="text-gray-500 hover:text-blue-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Reset all states">↻</button>
+            <button onClick={onReset} className="text-gray-500 hover:text-blue-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Setting">⚙</button>
+            <button onClick={onClose} className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Close">✕</button>
+          </div>
         </div>
         <div className="rounded-xl bg-gray-50 p-1 shadow-sm border border-gray-200/30">
           <div className="flex justify-center space-x-2">
@@ -542,10 +562,7 @@ const Panel = ({
                       alert("No debug patch available.");
                       return;
                     }
-                
-                    // Check if we're on a supported page
-                    const isSubmissionsPage = /^https:\/\/leetcode\.com\/problems\/[^/]+\/submissions\/[^/]+\/?(?:\?.*)?$/.test(window.location.href);
-                
+      
                     if (!isSubmissionsPage && !isLeetCodeProblemPage) {
                       throw new Error("Code injection can only be performed on a LeetCode problem or submissions page.");
                     }
@@ -627,8 +644,6 @@ const Panel = ({
                     setCardHeight(0);
                     setIsDebugDisabled(true);
                     setManualDebugDisabled(true);
-                
-                    alert("Code successfully injected into the editor!");
                   } catch (error) {
                     console.error('Failed to inject debug patch:', error);
                     alert(`Failed to inject code: ${(error as Error).message}. Please try again or check the console for more details.`);

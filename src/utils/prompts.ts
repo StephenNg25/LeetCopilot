@@ -1,4 +1,4 @@
-export const generateHintPrompt = (hintLevel: number, problemContent: string) => {
+export const generateHintPrompt = (hintLevel: number, problemContent: string, codeTemplate: string | null = null) => {
     switch (hintLevel) {
       case 10:
         return `Here is a LeetCode problem description:\n${problemContent}\nI want a brute-force/least-efficient hint that gives a small nudge towards the solution without revealing it and going into code. Keep it to two to three sentences. This should be a hint for the most straightforward and easiest way of approaching. Mention the data structures or algorithms used for this approach. Add another sentence explicitly explain the intuition why that data structure or algorithm is recommended for this problem.`;
@@ -9,9 +9,13 @@ export const generateHintPrompt = (hintLevel: number, problemContent: string) =>
       case 40:
         return `Here is a LeetCode problem description:\n${problemContent}\nGive a technical implementation detail hint for the most optimal way of approaching without revealing the entire code. Mention the time complexity and explain how the recommended data structure of this most optimized approach works. Give example walkthroughs to demonstrate and give better visualization.`;
       case 100:
-        return `Here is a LeetCode problem description:\n${problemContent}\nWrite the brute-force and complete most optimal solution with line-by-line comments by side. Explain the logic behind the code for both approachs by giving walkthrough example. Also, mention the time complexity and space complexity of both approaches.`;
+        if (codeTemplate){
+          return `Here is a LeetCode problem description:\n${problemContent}\n.Write the brute-force and most optimal solutions. Use separate code blocks for each solutions. Include line-by-line comments on the same line with the code. Both solutions need to start with the following code template:\n${codeTemplate}\n.Explain the logic behind the code for both approaches by giving walkthrough examples. Also, mention the time complexity and space complexity of both approaches.`;
+        }return `Here is a LeetCode problem description:\n${problemContent}\n.Write the brute-force and most optimal solutions. Use separate code blocks for each solutions. Include line-by-line comments on the same line with the code. Explain the logic behind the code for both approaches by giving walkthrough examples. Also, mention the time complexity and space complexity of both approaches.`;
       default:
         return 'Invalid hint level.';
     }
   };
   
+
+ 

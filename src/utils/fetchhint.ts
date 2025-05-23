@@ -4,8 +4,8 @@ import { generateHintPrompt } from '@/utils/prompts';
 //AI hint prompt handling 
 
 // Generating Hint Prompt using Groq
-const fetchHintFromGroq = async (hintLevel: number, problemContent: string): Promise<string> => {
-    const prompt = generateHintPrompt(hintLevel, problemContent);
+const fetchHintFromGroq = async (hintLevel: number, problemContent: string, codeTemplate: string | null = null): Promise<string> => {
+    const prompt = generateHintPrompt(hintLevel, problemContent, codeTemplate);
 
     const response = await groqClient.post('/chat/completions', {
     temperature: 0.5,
@@ -15,7 +15,7 @@ const fetchHintFromGroq = async (hintLevel: number, problemContent: string): Pro
         { role: 'user', content: prompt }
     ]
     });
-
+    console.log('Prompt:', prompt);
     return response.data.choices[0].message.content;
 };
 

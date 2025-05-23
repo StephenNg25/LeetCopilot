@@ -22,7 +22,7 @@ return (
             className="absolute top-0 right-0 px-1 py-0 text-gray-500 rounded-full text-xs hover:bg-red-600 hover:text-white" 
             style={{ fontSize: '0.65rem' }}
         >
-            X
+            ✕
         </button>
     </div>
 );
