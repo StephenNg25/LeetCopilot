@@ -19,8 +19,9 @@ const fetchConversation = async (
     { role: 'user', content: userInput }
   ];
 
-  // Log the request payload for debugging
+  // Log the entire request payload 
   console.log('[fetchConversation] Sending request with payload:', JSON.stringify(messages, null, 2));
+  
 
   try {
     const response = await groqClient.post('/chat/completions', {

@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Check, Lock as LockIcon, Copy } from 'lucide-react';
+import { Check, Lock as LockIcon, Copy, ChevronDown } from 'lucide-react';
 import ShrinkIcon from '@/assets/shrink-D.png';
-import { fetchConversation } from '@/utils/fetchconversation';
 
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -15,6 +14,8 @@ const hintData = [
   { percent: 40, text: 'This is an O(n) technical hint and weighs 40% of the problem. Do you want to use it?' },
   { percent: 100, text: 'This is the entire most optimized solution. Do you want to see it?' }
 ];
+
+const languages = ['Python', 'C++', 'Java']; // Define languages for the dropdown
 
 const highlightTerms = (text) => {
   if (typeof text !== 'string') return text;
@@ -89,16 +90,24 @@ const ExpandedHintModal = ({
   handleUnlockHint,
   userInput,
   setUserInput,
-  handleSendMessage
+  handleSendMessage,
+  currentLanguage: initialLanguage // Rename to initialLanguage to manage local state
 }) => {
   const chatEndRef = useRef(null);
-  const isHintUnlocked = unlockedHints.has(activeHint);
+  const [currentLanguage, setCurrentLanguage] = useState(initialLanguage); // Local state for language
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // State for dropdown visibility
+  const hintKey = activeHint >= 30 ? `${activeHint}-${currentLanguage}` : `${activeHint}`; // Use language-specific key
+  const isHintUnlocked = unlockedHints.has(hintKey);
   const currentHintData = hintData.find(h => h.percent === activeHint);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [hintMessages, activeHint]);
+  }, [hintMessages, activeHint, currentLanguage]);
+
+  useEffect(() => {
+    setCurrentLanguage(initialLanguage); // Sync with parent language when it changes
+  }, [initialLanguage]);
 
   const handleUnlock = async () => {
     setIsLoading(true);
@@ -116,21 +125,28 @@ const ExpandedHintModal = ({
 
     setIsLoading(true);
     try {
-      // Notify parent to add user message and handle the response
       await handleSendMessage(userInput, activeHint);
 
-      // Clear input and reset textarea height
       setUserInput('');
       const textarea = document.querySelector('textarea');
       if (textarea) {
         textarea.style.height = '50px';
-        textarea.focus(); // Ensure textarea remains focusable
+        textarea.focus();
       }
     } catch (error) {
       console.error('Failed to send message:', error);
     } finally {
-      setIsLoading(false); // Ensure isLoading is reset
+      setIsLoading(false);
     }
+  };
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(prev => !prev);
+  };
+
+  const handleLanguageSelect = (language) => {
+    setCurrentLanguage(language);
+    setIsDropdownOpen(false);
   };
 
   return (
@@ -140,7 +156,7 @@ const ExpandedHintModal = ({
           <div className="flex justify-between items-center mb-4">
             <div className="flex gap-2 flex-wrap">
               {hintData.map(({ percent }) => {
-                const unlocked = unlockedHints.has(percent);
+                const unlocked = unlockedHints.has(percent >= 30 ? `${percent}-${currentLanguage}` : `${percent}`);
                 return (
                   <button
                     key={percent}
@@ -159,16 +175,40 @@ const ExpandedHintModal = ({
                 );
               })}
             </div>
-            <button onClick={onClose} className="hover:opacity-80">
-              <img src={ShrinkIcon} alt="Shrink" className="w-6 h-6 object-contain" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={toggleDropdown}
+                  className="flex items-center gap-1 bg-zinc-800 text-white px-3 py-1 rounded-md hover:bg-zinc-700 transition-all duration-200"
+                >
+                  <span className="text-sm">{currentLanguage}</span>
+                  <ChevronDown size={16} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-32 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-10">
+                    {languages.map((language) => (
+                      <button
+                        key={language}
+                        onClick={() => handleLanguageSelect(language)}
+                        className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-zinc-700 transition-all duration-200"
+                      >
+                        {language}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button onClick={onClose} className="hover:opacity-80">
+                <img src={ShrinkIcon} alt="Shrink" className="w-6 h-6 object-contain" />
+              </button>
+            </div>
           </div>
 
           {isHintUnlocked ? (
             <>
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-3">
-                  {(hintMessages[activeHint] || []).map((msg, idx) => (
+                  {(hintMessages[hintKey] || []).map((msg, idx) => (
                     <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
                       {msg.role === 'assistant' ? (
                         <>

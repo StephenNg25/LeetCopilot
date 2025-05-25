@@ -9,7 +9,6 @@ import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
 import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import ExpandedHintModal from './ExpandedHintChat';
-// Debug Patching for Suggestion Card
 import { parsePatchResponse } from '@/utils/debugger';
 import FixSuggestionCard from './FixSuggestionCard';
 import ErrorDisplay from './ErrorDisplay';
@@ -36,7 +35,8 @@ const getHintLevel = (percent: number): number => {
 };
 
 const ERROR_MESSAGE = "I’m sorry, I can only assist based on the current hint.";
-//Injecting Script for Sellecting All Monaco Editor (monaco-select-all.js)
+
+// Injecting Script for Selecting All Monaco Editor (monaco-select-all.js)
 function injectScriptBySrc(srcPath: string) {
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL(srcPath);
@@ -85,7 +85,12 @@ const Panel = ({
   const fixCardRef = useRef<HTMLDivElement>(null);
   const [parsed, setParsed] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
-  const isHintUnlocked = unlockedHints.has(activeHint);
+
+  const currentLanguage = languages[languageIndex];
+  // Create a key for language-specific hints (30, 40, 100)
+  const hintKey = activeHint >= 30 ? `${activeHint}-${currentLanguage}` : `${activeHint}`;
+  const isHintUnlocked = unlockedHints.has(hintKey);
+  
 
   const scrollLeft = () => setLanguageIndex(prev => Math.max(prev - 1, 0));
   const scrollRight = () => setLanguageIndex(prev => Math.min(prev + 1, languages.length - 1));
@@ -98,6 +103,7 @@ const Panel = ({
       default: return 'text-gray-500';
     }
   };
+
   useEffect(() => {
     const titleSlug = window.location.pathname.split('/')[2];
     const getProblemInfo = async () => {
@@ -116,24 +122,7 @@ const Panel = ({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [hintMessages, activeHint]);
-
-  useEffect(() => {
-    const checkDebugEligibility = () => {
-      const isSubmission = isSubmissionsPage();
-      const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
-      const isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
-  
-      setIsDebugDisabled(!isSubmission || isAccepted);
-    };
-  
-    checkDebugEligibility();
-  
-    const observer = new MutationObserver(checkDebugEligibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-  
-    return () => observer.disconnect();
-  }, [setIsDebugDisabled]);
+  }, [hintMessages, activeHint, currentLanguage]);
 
   useEffect(() => {
     const checkDebugEligibility = () => {
@@ -148,26 +137,21 @@ const Panel = ({
         isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
       } else if (isProblemPage) {
         const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
-        hasResult = !!consoleResultElem; // Check if the element exists
+        hasResult = !!consoleResultElem;
         isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
-    }
-  
-      // Enable DEBUG only if:
-      // 1. On a submissions page AND not accepted, OR
-      // 2. On the exact problem page AND not accepted
+      }
+
       setIsDebugDisabled(!((isSubmission && !isAccepted) || (isProblemPage && hasResult && !isAccepted)));
     };
-  
+
     checkDebugEligibility();
-  
+
     const observer = new MutationObserver(checkDebugEligibility);
     observer.observe(document.body, { childList: true, subtree: true });
-  
+
     return () => observer.disconnect();
   }, [setIsDebugDisabled]);
   
-
-  const currentLanguage = languages[languageIndex];
 
   const handleSendMessage = async (input = userInput, hint = activeHint) => {
     const trimmed = input.trim();
@@ -176,11 +160,12 @@ const Panel = ({
     setIsSending(true);
 
     const newUserMsg = { role: 'user', text: trimmed };
-    const prevMessages = hintMessages[hint] || [];
+    const currentHintKey = hint >= 30 ? `${hint}-${currentLanguage}` : `${hint}`;
+    const prevMessages = hintMessages[currentHintKey] || [];
 
     setHintMessages(prev => ({
       ...prev,
-      [hint]: [...prevMessages, newUserMsg]
+      [currentHintKey]: [...prevMessages, newUserMsg]
     }));
 
     if (input === userInput) {
@@ -195,13 +180,22 @@ const Panel = ({
           ]
         : [];
 
-      if (reducedHistory.length >= 2 && reducedHistory[reducedHistory.length - 1].role === 'assistant' && reducedHistory[reducedHistory.length - 1].text === ERROR_MESSAGE) {
-        reducedHistory.pop();
-        if (reducedHistory.length > 1 && reducedHistory[reducedHistory.length - 1].role === 'user') {
-          reducedHistory.pop();
+      // Filter out any assistant message with ERROR_MESSAGE and its preceding user message
+      let i = 0;
+      while (i < reducedHistory.length) {
+        if (reducedHistory[i].role === 'assistant' && reducedHistory[i].text === ERROR_MESSAGE) {
+          // Remove the current assistant message with ERROR_MESSAGE
+          reducedHistory.splice(i, 1);
+          // If there's a preceding message and it's from the user, remove it too
+          if (i > 0 && reducedHistory[i - 1].role === 'user') {
+            reducedHistory.splice(i - 1, 1);
+            i--; // Adjust index to account for the removed preceding message
+          }
+        } else {
+          i++; // Move to the next message only if no removal occurred
         }
-      }
-
+    }
+      
       const hintLevel = getHintLevel(hint);
       const aiResponse = await fetchConversation(reducedHistory, trimmed, hintLevel, problemContent);
 
@@ -213,14 +207,14 @@ const Panel = ({
       console.error('[Chat] Failed to get AI response:', err);
       setHintMessages(prev => ({
         ...prev,
-        [hint]: [...(prev[hint] || []), { role: 'assistant', text: 'Sorry, I am burning out at this point. Please try again later!' }]
+        [currentHintKey]: [...(prev[currentHintKey] || []), { role: 'assistant', text: 'Sorry, I am burning out at this point. Please try again later!' }]
       }));
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleUnlockHint = async (percent: number) => {
+  const handleUnlockHint = async (percent: number, language: string) => {
     try {
       const languageMap = {
         'Python': 'Python',
@@ -233,24 +227,30 @@ const Panel = ({
       const problemContent = problemContentData.content;
       const codeSnippets = problemContentData.codeSnippets;
       console.log("codeSnippets", codeSnippets);
-      const selectedLang = languageMap[currentLanguage];
+      const selectedLang = languageMap[language];
       console.log("language:", selectedLang);
       const codeTemplate = codeSnippets.find(snippet => snippet.lang === selectedLang)?.code || null;
       console.log("code template:", codeTemplate);
       setProblemContent(problemContent);
-      const hintMessage = await fetchHintFromGroq(percent, problemContent, codeTemplate);
+      const hintMessage = await fetchHintFromGroq(percent, problemContent, codeTemplate, language);
 
+      const hintKey = percent >= 30 ? `${percent}-${language}` : `${percent}`;
       setHintMessages(prev => ({
         ...prev,
-        [percent]: [
+        [hintKey]: [
           { role: 'assistant', text: hintMessage },
           { role: 'assistant', text: "Ohh! Pardon me for not introducing myself (^-^'). I'm your AI assistant for the above hint. Feel free to ask me anything about it" }
         ]
       }));
       const newUnlocked = new Set(unlockedHints);
-      newUnlocked.add(percent);
+      newUnlocked.add(hintKey);
       setUnlockedHints(newUnlocked);
-      const unlockedArray = Array.from(newUnlocked).map(Number);
+      const unlockedArray = Array.from(newUnlocked)
+        .map(key => {
+          const [percent] = (key as string).split('-');
+          return Number(percent);
+        })
+        .filter((percent, index, self) => self.indexOf(percent) === index); // Deduplicate by percent
       const total = unlockedArray.reduce((sum, hint) => sum + hint, 0);
       setTotalAssistance(Math.min(100, total));
     } catch (error) {
@@ -283,7 +283,6 @@ const Panel = ({
     return () => { document.body.style.overflow = ''; };
   }, [isExpanded]);
 
-  // Parse debugResponse when it updates
   useEffect(() => {
     if (debugResponse) {
       console.log('Received debugResponse:', debugResponse);
@@ -308,7 +307,6 @@ const Panel = ({
     }
   }, [debugResponse, setDebugPatch]);
 
-  //Displaying Error Message for only 5s
   useEffect(() => {
     if (isErrorVisible) {
       const timer = setTimeout(() => {
@@ -319,7 +317,6 @@ const Panel = ({
     }
   }, [isErrorVisible]);
 
-  // Set card height when debugPatch is set and fixCardRef is available
   useEffect(() => {
     if (debugPatch && fixCardRef.current) {
       const contentHeight = fixCardRef.current.scrollHeight;
@@ -329,13 +326,11 @@ const Panel = ({
     }
   }, [debugPatch]);
 
-  // Draggable card height adjustment
   const handleMouseDown = (e: React.MouseEvent) => {
     const startY = e.clientY;
     const startHeight = cardHeight;
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Calculate new height based on drag direction (invert drag for intuitive resizing)
       const deltaY = startHeight - (e.clientY - startY);
       let newHeight = Math.max(0, deltaY); // Ensure height doesn't go negative
       if (fixCardRef.current) {
@@ -441,7 +436,7 @@ const Panel = ({
                   : "border-gray-100 text-gray-500"
               )}
             > 
-              {unlockedHints.has(percent) ? (
+              {unlockedHints.has(percent >= 30 ? `${percent}-${currentLanguage}` : `${percent}`) ? (
                 <Unlock size={18} className="mb-1.5 text-green-500" />
               ) : (
                 <Lock size={18} className="mb-1.5 text-red-300" />
@@ -456,7 +451,7 @@ const Panel = ({
             {isHintUnlocked ? (
               <div className="flex flex-col flex-1 gap-3 overflow-hidden">
                 <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 min-h-0">
-                  {(hintMessages[activeHint] || []).map((msg, idx) => (
+                  {(hintMessages[hintKey] || []).map((msg, idx) => (
                     <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
                       {msg.role === 'assistant' ? (
                         <>
@@ -531,7 +526,7 @@ const Panel = ({
                   <span className="text-sm text-gray-400">Language: {currentLanguage}</span>
                 </p>
                 <div className="flex justify-center mb-3">
-                  <button onClick={() => handleUnlockHint(activeHint)}
+                  <button onClick={() => handleUnlockHint(activeHint, currentLanguage)}
                           className="px-8 py-2.5 bg-orange-400 text-white font-medium text-base rounded-lg
                                      transition-all duration-200 hover:bg-orange-500 focus:outline-none focus:ring-2
                                      focus:ring-orange-400/30 shadow-sm hover:shadow-md flex items-center justify-center">
@@ -542,12 +537,11 @@ const Panel = ({
             )}
           </div>
           
-          {/* Debug button section */}
           <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200 flex-shrink-0">
             <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
             <div className="flex gap-3">
               <button
-                onClick={() => handleDebug(problemContent, setDebugResponse)} // Call the imported handleDebug
+                onClick={() => handleDebug(problemContent, setDebugResponse)}
                 disabled={isDebugDisabled}
                 className={cn(
                   "px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
@@ -562,17 +556,16 @@ const Panel = ({
         </div>
       </div>
 
-      {/* Inject FixSuggestionCard with resizable height */}
       {debugPatch && (
         <>
           <div
             style={{
               position: 'absolute',
-              bottom: 0, // Fix the bottom edge to the panel's bottom (within 10px gap)
+              bottom: 0,
               left: 0,
               right: 0,
-              height: `${cardHeight}px`, // Card height controlled by dragging
-              transition: 'height 0s cubic-bezier(0.25, 0.1, 0.25, 1)', // Smoother transition
+              height: `${cardHeight}px`,
+              transition: 'height 0s cubic-bezier(0.25, 0.1, 0.25, 1)',
             }}
             className="bg-white border border-b-0 rounded-t-md shadow-lg z-[1000] overflow-hidden"
           >
@@ -581,7 +574,6 @@ const Panel = ({
                 original={debugPatch.original}
                 modified={debugPatch.modified}
                 explanation={debugPatch.explanation}
-                
                 onAccept={async () => {
                   try {
                     const modifiedCode = debugPatch?.modified?.trim();
@@ -590,16 +582,16 @@ const Panel = ({
                       alert("No debug patch available.");
                       return;
                     }
-      
+
                     if (!isSubmissionsPage && !isLeetCodeProblemPage) {
                       throw new Error("Code injection can only be performed on a LeetCode problem or submissions page.");
                     }
-                
+       
                     // Function to find the Monaco Editor instance
                     const findMonacoEditor = async () => {
                       return new Promise<any>((resolve, reject) => {
                         let observer: MutationObserver | null = null;
-              
+
                         const editorContainer = document.querySelector('#editor') ||
                                                 document.querySelector('.monaco-scrollable-element.editor-scrollable.vs-dark');
                         if (editorContainer) {
@@ -618,17 +610,14 @@ const Panel = ({
                 
                     // Attempt to find the editor
                     const result = await findMonacoEditor();
-                    
-                
+              
                     if (result.type === 'textarea') {
                       const textarea = result.value;
                       console.log('Textarea found, initial value:', textarea.value);
-                      // Force clear with a comprehensive event sequence
                       textarea.focus();
-                      injectScriptBySrc('js/monaco-select-all.js'); // Select all content
+                      injectScriptBySrc('js/monaco-select-all.js');
                       await new Promise(resolve => setTimeout(resolve, 500));
 
-                      // Inject the new code (this part works, so keep it as is)
                       const clipboardData = new DataTransfer();
                       clipboardData.setData('text/plain', modifiedCode);
                       const pasteEvent = new ClipboardEvent('paste', {
@@ -636,9 +625,9 @@ const Panel = ({
                         bubbles: true,
                         cancelable: true
                       });
-                      
+
                       textarea.value = modifiedCode;
-                      
+
                       textarea.dispatchEvent(pasteEvent);
                       textarea.dispatchEvent(new Event('input', { bubbles: true }));
                       textarea.dispatchEvent(new Event('change', { bubbles: true }));
@@ -661,7 +650,6 @@ const Panel = ({
                       } else {
                         console.warn('View lines not found.');
                       }
-                      
                     } else {
                       throw new Error("Unknown result type or editor not found");
                     }
@@ -675,25 +663,24 @@ const Panel = ({
                     alert(`Failed to inject code: ${(error as Error).message}. Please try again or check the console for more details.`);
                   }
                 }}
-                
-              
                 onAgain={async () => {
                   await handleDebug(problemContent, setDebugResponse);
-                  // debugResponse update will trigger useEffect to parse again
-                } } onDiscard={function (): void {
+                }}
+                onDiscard={() => {
                   throw new Error('Function not implemented.');
-                } }              />
+                }}
+              />
             </div>
           </div>
           <div
             onMouseDown={handleMouseDown}
             style={{
               position: 'absolute',
-              bottom: `${cardHeight}px`, // Position splitter bar at the top of the card
+              bottom: `${cardHeight}px`,
               left: 0,
               right: 0,
-              height: '15px', // Splitter bar height fits within the 10px gap when collapsed
-              transition: 'bottom 0s cubic-bezier(0.25, 0.1, 0.25, 1)', // Smoother transition
+              height: '15px',
+              transition: 'bottom 0s cubic-bezier(0.25, 0.1, 0.25, 1)',
             }}
             className="bg-gray-300 cursor-ns-resize flex items-center justify-center z-[1001]"
           >
@@ -709,10 +696,11 @@ const Panel = ({
           activeHint={activeHint}
           setActiveHint={setActiveHint}
           unlockedHints={unlockedHints}
-          handleUnlockHint={handleUnlockHint}
+          handleUnlockHint={(percent) => handleUnlockHint(percent, currentLanguage)}
           userInput={userInput}
           setUserInput={setUserInput}
           handleSendMessage={handleSendMessage}
+          currentLanguage={currentLanguage}
         />
       )}
     </div>

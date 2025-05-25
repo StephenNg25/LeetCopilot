@@ -52,20 +52,18 @@ export const handleDebug = async (
   let hasResult = false;
   if (isSubmission) {
     const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
-    hasResult = !!acceptedElem;
     isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
   } else if (isProblemPage) {
     const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
     hasResult = !!consoleResultElem;
     isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
   }
-
-  // Only proceed if there is a result and it's not "accepted"
-  if (!hasResult || isAccepted) {
+  // Can't proceed if there's no error(isAccepted) or no test run(!hasResult) on a problem page or there's no error(isAccepted) on a submission page
+  if ((isSubmission && isAccepted) || (isProblemPage && (!hasResult || isAccepted))) {
     setDebugResponse('Debugging is only available when there is an error to debug.');
     return;
   }
-
+  
   try {
     const extractSubmissionFromPage = async () => {
       let submittedCode = '';
