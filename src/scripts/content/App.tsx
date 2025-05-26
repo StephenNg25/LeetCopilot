@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Panel from './Panel'
 import LCPLogo from '@/assets/LCP.png'
-import { DebugPatch} from '@/utils/debugger';
+import { DebugPatch } from '@/utils/debugger';
+
 const App = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
@@ -10,7 +11,6 @@ const App = () => {
   const dragRef = useRef<HTMLDivElement | null>(null)
   const isDragging = useRef(false)
   const offsetY = useRef(0)
-  //ProblemKey is the Url KeyBase deciding whether the states should be remained or not
   const [currentProblemKey, setCurrentProblemKey] = useState<string | null>(null)
 
   // Lifted thought eval states from Panel to App
@@ -30,8 +30,10 @@ const App = () => {
   const [debugResponse, setDebugResponse] = useState<string | null>(null)
   const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null)
   const [isDebugDisabled, setIsDebugDisabled] = useState(true)
+  // New state for reducedHistory
+  const [reducedHistory, setReducedHistory] = useState<{ role: string; text: string }[]>([])
 
-  //resetStates for "↻"
+  // Reset states for "↻"
   const resetStates = () => {
     setActiveHint(10);
     setHintMessages({});
@@ -46,6 +48,7 @@ const App = () => {
     setAiFeedback('');
     setTimeComplexity('N/A');
     setOptimizedScore('0');
+    setReducedHistory([]);
   };
 
   const togglePanel = () => setIsPanelOpen(prev => !prev)
@@ -69,7 +72,8 @@ const App = () => {
       thoughts,
       aiFeedback,
       timeComplexity,
-      optimizedScore
+      optimizedScore,
+      reducedHistory // Save reducedHistory
     }
     chrome.storage.local.set({ [problemKey]: state }, () => {
       console.log('State saved for problem:', problemKey)
@@ -93,6 +97,16 @@ const App = () => {
         setAiFeedback(storedState.aiFeedback)
         setTimeComplexity(storedState.timeComplexity)
         setOptimizedScore(storedState.optimizedScore)
+        setReducedHistory(storedState.reducedHistory || [])
+        // Log reducedHistory when loaded
+        console.log('Loaded reducedHistory:', JSON.stringify(
+          (storedState.reducedHistory || []).map((msg: { role: string; text: string }) => ({
+            role: msg.role === 'bot' ? 'assistant' : msg.role,
+            content: msg.text
+          })),
+          null,
+          2
+        ))
         console.log('State loaded for problem:', problemKey)
       }
     })
@@ -127,7 +141,7 @@ const App = () => {
     if (currentProblemKey) {
       saveState(currentProblemKey)
     }
-  }, [activeHint, hintMessages, unlockedHints, totalAssistance, userInput, isExpanded, debugResponse, debugPatch, thoughts, aiFeedback, timeComplexity, optimizedScore])
+  }, [activeHint, hintMessages, unlockedHints, totalAssistance, userInput, isExpanded, debugResponse, debugPatch, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -232,6 +246,8 @@ const App = () => {
           setDebugPatch={setDebugPatch}
           isDebugDisabled={isDebugDisabled}
           setIsDebugDisabled={setIsDebugDisabled}
+          reducedHistory={reducedHistory}
+          setReducedHistory={setReducedHistory}
         />
       )}
     </>

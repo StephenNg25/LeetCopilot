@@ -73,6 +73,8 @@ const Panel = ({
   setDebugPatch,
   isDebugDisabled,
   setIsDebugDisabled,
+  reducedHistory,
+  setReducedHistory
 }) => {
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
@@ -194,10 +196,33 @@ const Panel = ({
         } else {
           i++; // Move to the next message only if no removal occurred
         }
-    }
+      }
+
+      // Update reducedHistory in App.tsx
+      setReducedHistory(reducedHistory);
       
       const hintLevel = getHintLevel(hint);
       const aiResponse = await fetchConversation(reducedHistory, trimmed, hintLevel, problemContent);
+
+      // Imediately add the last pair of new user and assistant messages to the history without waiting new user inputs to trigger the save
+      let updatedHistory = [...reducedHistory, newUserMsg, { role: 'assistant', text: aiResponse }];
+
+      // Filter the updated history again for this last pair only 
+      i = 0;
+      while (i < updatedHistory.length) {
+        if (updatedHistory[i].role === 'assistant' && updatedHistory[i].text === ERROR_MESSAGE) {
+          updatedHistory.splice(i, 1);
+          if (i > 0 && updatedHistory[i - 1].role === 'user') {
+            updatedHistory.splice(i - 1, 1);
+            i--;
+          }
+        } else {
+          i++;
+        }
+      }
+
+      // Update reducedHistory with the filtered history
+      setReducedHistory(updatedHistory);
 
       setHintMessages(prev => ({
         ...prev,
