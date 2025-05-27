@@ -63,8 +63,6 @@ const Panel = ({
   setUnlockedHints,
   totalAssistance,
   setTotalAssistance,
-  userInput,
-  setUserInput,
   isExpanded,
   setIsExpanded,
   debugResponse,
@@ -77,6 +75,7 @@ const Panel = ({
   setReducedHistory
 }) => {
   const [inputHeight, setInputHeight] = useState(36); // default height
+  const [userInput, setUserInput] = useState('')
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
   const [problemTitle, setProblemTitle] = useState('');

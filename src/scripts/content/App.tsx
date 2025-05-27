@@ -24,7 +24,6 @@ const App = () => {
   const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({})
   const [unlockedHints, setUnlockedHints] = useState(new Set<number>())
   const [totalAssistance, setTotalAssistance] = useState(0)
-  const [userInput, setUserInput] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   // Lifted debug states from Panel to App
   const [debugResponse, setDebugResponse] = useState<string | null>(null)
@@ -39,7 +38,6 @@ const App = () => {
     setHintMessages({});
     setUnlockedHints(new Set<number>());
     setTotalAssistance(0);
-    setUserInput('');
     setIsExpanded(false);
     setDebugResponse(null);
     setDebugPatch(null);
@@ -64,7 +62,6 @@ const App = () => {
       hintMessages,
       unlockedHints: Array.from(unlockedHints),
       totalAssistance,
-      userInput,
       isExpanded,
       debugResponse,
       debugPatch,
@@ -88,7 +85,6 @@ const App = () => {
         setHintMessages(storedState.hintMessages)
         setUnlockedHints(new Set(storedState.unlockedHints))
         setTotalAssistance(storedState.totalAssistance)
-        setUserInput(storedState.userInput)
         setIsExpanded(storedState.isExpanded)
         setDebugResponse(storedState.debugResponse)
         setDebugPatch(storedState.debugPatch)
@@ -141,7 +137,7 @@ const App = () => {
     if (currentProblemKey) {
       saveState(currentProblemKey)
     }
-  }, [activeHint, hintMessages, unlockedHints, totalAssistance, userInput, isExpanded, debugResponse, debugPatch, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory])
+  }, [activeHint, hintMessages, unlockedHints, totalAssistance, isExpanded, debugResponse, debugPatch, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -236,8 +232,6 @@ const App = () => {
           setUnlockedHints={setUnlockedHints}
           totalAssistance={totalAssistance}
           setTotalAssistance={setTotalAssistance}
-          userInput={userInput}
-          setUserInput={setUserInput}
           isExpanded={isExpanded}
           setIsExpanded={setIsExpanded}
           debugResponse={debugResponse}
