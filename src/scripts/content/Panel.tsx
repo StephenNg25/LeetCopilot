@@ -76,6 +76,7 @@ const Panel = ({
   reducedHistory,
   setReducedHistory
 }) => {
+  const [inputHeight, setInputHeight] = useState(36); // default height
   const [tab, setTab] = useState('Problem');
   const [languageIndex, setLanguageIndex] = useState(0);
   const [problemTitle, setProblemTitle] = useState('');
@@ -197,7 +198,6 @@ const Panel = ({
           i++; // Move to the next message only if no removal occurred
         }
       }
-
       // Update reducedHistory in App.tsx
       setReducedHistory(reducedHistory);
       
@@ -471,11 +471,14 @@ const Panel = ({
           ))}
         </div>
 
-        <div className="flex flex-col flex-1 rounded-xl bg-white px-5 pt-5 pb-3 shadow-md border border-gray-200/30">
-          <div className="flex-1 flex flex-col overflow-hidden min-h-[200px] max-h-[300px]">
+        <div className="flex flex-col flex-1 rounded-xl bg-white px-5 pt-5 pb-3 shadow-md border border-gray-200/30 relative">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-[200px] max-h-[450px]">
             {isHintUnlocked ? (
-              <div className="flex flex-col flex-1 gap-3 overflow-hidden">
-                <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 min-h-0">
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div
+                  className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0"
+                  style={{ paddingBottom: `${48 + (inputHeight - 36)}px` }} //When input height updates, textarea height adjusts accordingly to make last message fully viewanble
+                >
                   {(hintMessages[hintKey] || []).map((msg, idx) => (
                     <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
                       {msg.role === 'assistant' ? (
@@ -493,55 +496,58 @@ const Panel = ({
                   <div ref={chatEndRef} />
                 </div>
 
-                <div className="relative flex items-center mb-1 w-[98%] self-center">
-                  <div className="flex flex-row-reverse w-full">
-                    <textarea
-                      className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
-                      rows={1}
-                      value={userInput}
-                      placeholder="Message LeetCopilot..."
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        const newHeight = Math.min(target.scrollHeight, 100);
-                        target.style.height = `${newHeight}px`;
-                        target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                          setUserInput("");
+                <div className="absolute bottom-16 left-5 right-5"> {/* Positioned absolutely just above the horizontal line */}
+                  <div className="relative flex items-center w-[100%] mx-auto">
+                    <div className="flex flex-row-reverse w-full">
+                      <textarea
+                        className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
+                        rows={1}
+                        value={userInput}
+                        placeholder="Message LeetCopilot..."
+                        onChange={(e) => setUserInput(e.target.value)}
+                        onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;
                           target.style.height = 'auto';
-                          target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
+                          const newHeight = Math.min(target.scrollHeight, 100);
+                          target.style.height = `${newHeight}px`;
                           target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
-                        }
-                      }}
-                      style={{ direction: 'ltr', overflowY: 'hidden' }}
-                    />
-                  </div>
-                  
-                  <button
-                    title="Expand"
-                    onClick={() => setIsExpanded(true)}
-                    className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:opacity-80 transition"
-                  >
-                    <img
-                      src={ExpandIcon}
-                      alt="Expand"
-                      className="w-5 h-5 object-contain"
-                    />
-                  </button>
+                          setInputHeight(newHeight); // update state
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                            setUserInput("");
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
+                            target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
+                          }
+                        }}
+                        style={{ direction: 'ltr', overflowY: 'hidden' }}
+                      />
+                    </div>
+                    
+                    <button
+                      title="Expand"
+                      onClick={() => setIsExpanded(true)}
+                      className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:opacity-80 transition"
+                    >
+                      <img
+                        src={ExpandIcon}
+                        alt="Expand"
+                        className="w-5 h-5 object-contain"
+                      />
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      handleSendMessage();
-                      setUserInput("");
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs shadow"
-                  >↑</button>
+                    <button
+                      onClick={() => {
+                        handleSendMessage();
+                        setUserInput("");
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs shadow"
+                    >↑</button>
+                  </div>
                 </div>
               </div>
             ) : (
