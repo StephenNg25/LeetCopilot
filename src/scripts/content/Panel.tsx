@@ -225,7 +225,7 @@ const Panel = ({
 
       setHintMessages(prev => ({
         ...prev,
-        [hint]: [...(prev[hint] || []), { role: 'assistant', text: aiResponse }]
+        [currentHintKey]: [...(prev[currentHintKey] || []), { role: 'assistant', text: aiResponse }]
       }));
     } catch (err) {
       console.error('[Chat] Failed to get AI response:', err);
