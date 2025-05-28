@@ -263,7 +263,7 @@ const Panel = ({
         ...prev,
         [hintKey]: [
           { role: 'assistant', text: hintMessage },
-          { role: 'assistant', text: "Ohh! Pardon me for not introducing myself (^-^'). I'm your AI assistant for the above hint. Feel free to ask me anything about it" }
+          { role: 'assistant', text: "I'm your AI buddy for the above hint. Feel free to ask me anything about it ~(˘▾˘~)" }
         ]
       }));
       const newUnlocked = new Set(unlockedHints);
@@ -426,7 +426,7 @@ const Panel = ({
           </div>
           <div className="max-h-[90px] overflow-y-auto">
             <textarea
-              placeholder="Tell us your thought of approaching?...."
+              placeholder="Tell me your thought of approaching?...."
               className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
               value={thoughts}
               onChange={(e) => setThoughts(e.target.value)}
@@ -502,7 +502,7 @@ const Panel = ({
                         className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
                         rows={1}
                         value={userInput}
-                        placeholder="Message LeetCopilot..."
+                        placeholder="Don't be shy and ask me..."
                         onChange={(e) => setUserInput(e.target.value)}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;
