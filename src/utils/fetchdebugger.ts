@@ -10,113 +10,100 @@ const fetchDebugger = async (problemContent: string, submittedCode: string, erro
          //temperature: 0.5,
          //model: 'llama-3.3-70b-versatile',
          //messages: [
-           //  { role: 'system', content: '\nYou are an AI debugger that reads in a Leetcode problem, submitted code with issues and error description. Your job is to suggest a difference for the change based on given information as minimally as possible. You must provide exactly 2 snippets in the output: 1 is #Original Snippet - The part of the submitted code that needs modification. This must remain completely original, unaltered and unclipped. 2 is the #Modified Snippet - The corrected version of the original snippet. Additionally, provide a brief #Diagnostic Explanation for the change made between the original snippet and the modified snippet. Do not include any additional suggestions, unrelated explanations, or hypothetical scenarios. Do not suggest further corrections or improvements beyond the provided modification. Do not include any full code blocks or unrelated commentary. Keep the explanation concise and strictly relevant to the change.' },
-            // { role: 'user', content: `**Problem:\n${problemContent}\n**Code:\n${submittedCode}\n**Error Description:\n${errorDescription}` }
+           //  { role: 'system', content: "A code snippet will be provided in the user prompt. This code has an error and you will have to debug it. You response must follow this format exactly:\n\n#Original Snippet\n```\nEntire code snippet from user prompt goes here. This must remain completely original, unaltered and unclipped.\n```\n#Modified Snippet\n```\nYour entire fixed code goes here. This must remain completely full and unclipped\n```\n#Diagnostic Explanation: explain your fix here\n\nFor code difference generating purpose, you are NOT ALLOWED to clean your fixed code in Modified Snippet like removing or adjusting comments. Except for the modified and added lines of code, the rest have to stay originally as how original snippet is. Do not include any additional suggestions, unrelated explanations, or hypothetical scenarios. Do not suggest further corrections or improvements beyond the provided modification. \n",
+            // { role: 'user', content: "Problem Content:\n${problemContent}\nCode Snippet with Error:\n${submittedCode}\n\nError:\n${errorDescription}"
+            
          //]
      //return response.data.choices[0].message.content; 
      return `
 #Original Snippet
-\`\`\`python 
-class Solution(object):
-    def findMedianSortedArrays(self, nums1, nums2):
-        """
-        :type nums1: List[int]
-        :type nums2: List[int]
-        :rtype: float
-        """
-        # If the length of nums1 is greater than the length of nums2, swap them
-        if len(nums1) > len(nums2):  # O(1) time complexity
-            nums1, nums2 = nums2, nums1  # O(1) time complexity
-        
-        # Calculate the total length of the two arrays
-        total_length = len(nums1) + len(nums2)  # O(1) time complexity
-        
-        # Initialize the low and high pointers for binary search
-        low = 0  # O(1) time complexity
-        high = len(nums1)  # O(1) time complexity
-        
-        # Perform binary search
-        while low <= high:  # O(log(min(m, n))) time complexity
-        # Calculate the partition point for nums1
-        partition_nums1 = (low + high) // 2  # O(1) time complexity
-        
-        # Calculate the partition point for nums2
-        partition_nums2 = (total_length + 1) // 2 - partition_nums1  # O(1) time complexity
+\`\`\`
+/**
+ * Definition for singly-linked list.
+ * public class ListNode {
+ *     int val;
+ *     ListNode next;
+ *     ListNode() {}
+ *     ListNode(int val) { this.val = val; }
+ *     ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+ * }
+ */
+class Solution {
 
-        # Calculate the values at the partition points
-        max_left_nums1 = float('-inf') if partition_nums1 == 0 else nums1[partition_nums1 - 1]  # O(1) time complexity
-        min_right_nums1 = float('inf') if partition_nums1 == len(nums1) else nums1[partition_nums1]  # O(1) time complexity
+                sum += l1.val;
+                l1 = l1.next;
+            }
+            if (l2 != null) {
+                sum += l2.val;
+                l2 = l2.next;
+            }
+            
+            // Create new node and update carry
+            current.next = new ListNode(sum % 10);
+            current = current.next;
+            carry = sum / 10;
+        }
         
-        max_left_nums2 = float('-inf') if partition_nums2 == 0 else nums2[partition_nums2 - 1]  # O(1) time complexity
-        min_right_nums2 = float('inf') if partition_nums2 == len(nums2) else nums2[partition_nums2]  # O(1) time complexity
+        // Handle remaining carry
+        if (carry > 0) {
+            current.next = new ListNode(carry);
+        }
         
-        # Check if the partition is correct
-        if max_left_nums1 <= min_right_nums2 and max_left_nums2 <= min_right_nums1:  # O(1) time complexity
-            # If the total length is even, the median is the average of the two middle numbers
-            if total_length % 2 == 0:  # O(1) time complexity
-                # Calculate the median
-                median = (max(max_left_nums1, max_left_nums2) + min(min_right_nums1, min_right_nums2)) / 2.0  # O(1) time complexity
-                return median
-            else:  # O(1) time complexity
-                median = float(max(max_left_nums1, max_left_nums2))  # O(1) time complexity
-                return median
-        elif max_left_nums1 > min_right_nums2:  # O(1) time complexity
-            high = partition_nums1 - 1  # O(1) time complexity
-        else:  # O(1) time complexity
-            low = partition_nums1 + 1  # O(1) time complexity
+        return dummy.next;
+    }
+}
 \`\`\`
 #Modified Snippet 
-\`\`\`python
-class Solution(object):
-    def findMedianSortedArrays(self, nums1, nums2):
-        """
-        :type nums1: List[int]
-        :type nums2: List[int]
-        :rtype: float
-        """
-        # If the length of nums1 is greater than the length of nums2, swap them
-        if len(nums1) > len(nums2):  # O(1) time complexity
-            nums1, nums2 = nums2, nums1  # O(1) time complexity
-
-        # Calculate the total length of the two arrays
-        total_length = len(nums1) + len(nums2)  # O(1) time complexity
-        
-        # Initialize the low and high pointers for binary search
-        low = 0  # O(1) time complexity
-        high = len(nums1)  # O(1) time complexity
-        
-        # Perform binary search
-        while low <= high:  # O(log(min(m, n))) time complexity
-            # Calculate the partition point for nums1
-            partition_nums1 = (low + high) // 2  # O(1) time complexity
-            
-            # Calculate the partition point for nums2
-            partition_nums2 = (total_length + 1) // 2 - partition_nums1  # O(1) time complexity
-            
-            # Calculate the values at the partition points
-            max_left_nums1 = float('-inf') if partition_nums1 == 0 else nums1[partition_nums1 - 1]  # O(1) time complexity
-            min_right_nums1 = float('inf') if partition_nums1 == len(nums1) else nums1[partition_nums1]  # O(1) time complexity
-            
-            max_left_nums2 = float('-inf') if partition_nums2 == 0 else nums2[partition_nums2 - 1]  # O(1) time complexity
-            min_right_nums2 = float('inf') if partition_nums2 == len(nums2) else nums2[partition_nums2]  # O(1) time complexity
-            
-            # Check if the partition is correct
-            if max_left_nums1 <= min_right_nums2 and max_left_nums2 <= min_right_nums1:  # O(1) time complexity
-                # If the total length is even, the median is the average of the two middle numbers
-                if total_length % 2 == 0:  # O(1) time complexity
-                    # Calculate the median
-                    median = (max(max_left_nums1, max_left_nums2) + min(min_right_nums1, min_right_nums2)) / 2.0
-                    return median  # Add a return statement here
-                # If the total length is odd, the median is the middle number
-                else:  # O(1) time complexity
-                    median = max(max_left_nums1, max_left_nums2)  # O(1) time complexity
-                    return median  # Add a return statement here
-            elif max_left_nums1 > min_right_nums2:  # O(1) time complexity
-                high = partition_nums1 - 1  # O(1) time complexity
-            else:  # O(1) time complexity
-                low = partition_nums1 + 1  # O(1) time complexity
 \`\`\`
-#Diagnostic Explanation:blaaa…...blaaa`
+/**
+ * Definition for singly-linked list.
+ * public class ListNode {
+ *     int val;
+ *     ListNode next;
+ *     ListNode() {}
+ *     ListNode(int val) { this.val = val; }
+ *     ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+ * }
+ */
+class Solution {
+    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
+        ListNode dummy = new ListNode(0);
+        ListNode current = dummy;
+        int sum = 0;
+        int carry = 0;
+        while (l1 != null || l2 != null) {
+            if (l1 != null) {
+                sum += l1.val;
+                l1 = l1.next;
+            }
+            if (l2 != null) {
+                sum += l2.val;
+                l2 = l2.next;
+            }
+            
+            // Create new node and update carry
+            current.next = new ListNode(sum % 10);
+            current = current.next;
+            carry = sum / 10;
+            sum = carry;
+        }
+        
+        // Handle remaining carry
+        if (carry > 0) {
+            current.next = new ListNode(carry);
+        }
+        
+        return dummy.next;
+    }
+}
+\`\`\`
+#Diagnostic Explanation: In the original code, there were several errors:
+
+1. The class Solution was missing its method definition.
+2. There was no method signature public ListNode addTwoNumbers(ListNode l1, ListNode l2) for the method.
+3. sum, carry, and dummy variables were used without declaration.
+4. The while loop conditions were incorrect.
+5. The sum was not being reset for each iteration of the loop.`
 };
 
 export { fetchDebugger };

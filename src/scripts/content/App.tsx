@@ -218,7 +218,7 @@ const App = () => {
             <div
               className="absolute -bottom-2 -left-2 flex items-center justify-center shadow-lg z-50"
             >
-              <img src={BugIcon} alt="Bug" className="w-4 h-4" />
+              <img src={BugIcon} alt="Bug" className="w-5 h-5" />
             </div>
           )}
           {/* Outer Container */}

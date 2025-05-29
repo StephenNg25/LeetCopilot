@@ -206,8 +206,8 @@ export interface DebugPatch {
 }
 
 export function parsePatchResponse(raw: string): DebugPatch | null {
-  const originalMatch = raw.match(/#*\s?Original Snippet:?[\s\S]*?```python\s+([\s\S]*?)(?=\n```|$)/i);
-  const modifiedMatch = raw.match(/#*\s?Modified Snippet:?[\s\S]*?```python\s+([\s\S]*?)(?=\n```|$)/i);
+  const originalMatch = raw.match(/#*\s?Original Snippet:?[\s\S]*?```(?:\w+)?\s*([\s\S]*?)(?=```)/i);
+  const modifiedMatch = raw.match(/#*\s?Modified Snippet:?[\s\S]*?```(?:\w+)?\s*([\s\S]*?)(?=```)/i);
   const explanationMatch = raw.match(/#*\s?Diagnostic Explanation:?[\s\S]*$/i);
 
   if (!originalMatch || !modifiedMatch) return null;
