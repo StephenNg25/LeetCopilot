@@ -2,7 +2,7 @@ import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
-import { isSubmissionsPage, isLeetCodeProblemPage, isExactLeetCodeProblemPage, cn } from '@/utils/browser';
+import { isSubmissionsPage, isLeetCodeProblemPage, cn } from '@/utils/browser';
 import { handleDebug } from '@/utils/debugger'; 
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
@@ -70,8 +70,6 @@ const Panel = ({
   debugPatch,
   setDebugPatch,
   isDebugDisabled,
-  setIsDebugDisabled,
-  reducedHistory,
   setReducedHistory
 }) => {
   const [inputHeight, setInputHeight] = useState(36); // default height
@@ -126,35 +124,6 @@ const Panel = ({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [hintMessages, activeHint, currentLanguage]);
 
-  useEffect(() => {
-    const checkDebugEligibility = () => {
-      const isSubmission = isSubmissionsPage();
-      const isProblemPage = isExactLeetCodeProblemPage(); 
-
-      let isAccepted = false;
-      let hasResult = false;
-
-      if (isSubmission) {
-        const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
-        isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
-      } else if (isProblemPage) {
-        const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
-        hasResult = !!consoleResultElem;
-        isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
-      }
-
-      setIsDebugDisabled(!((isSubmission && !isAccepted) || (isProblemPage && hasResult && !isAccepted)));
-    };
-
-    checkDebugEligibility();
-
-    const observer = new MutationObserver(checkDebugEligibility);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => observer.disconnect();
-  }, [setIsDebugDisabled]);
-  
-
   const handleSendMessage = async (input = userInput, hint = activeHint) => {
     const trimmed = input.trim();
     if (!trimmed || isSending || !problemContent) return;
@@ -175,41 +144,41 @@ const Panel = ({
     }
 
     try {
-      const reducedHistory = prevMessages.length > 0
-        ? [
-            prevMessages[0],
-            ...prevMessages.slice(1).slice(-6)
-          ]
-        : [];
+      // Debug: Log the full message history
+      console.log('Full prevMessages:', prevMessages);
 
-      // Filter out any assistant message with ERROR_MESSAGE and its preceding user message
+      // Step 1: Keep the initial hint and the rest of the messages
+      const initialHint = prevMessages.length > 0 ? prevMessages[0] : null;
+      let workingMessages = prevMessages.length > 0 ? [...prevMessages.slice(1)] : [];
+
+      // Step 2: Filter out error messages and their preceding user messages
       let i = 0;
-      while (i < reducedHistory.length) {
-        if (reducedHistory[i].role === 'assistant' && reducedHistory[i].text === ERROR_MESSAGE) {
-          // Remove the current assistant message with ERROR_MESSAGE
-          reducedHistory.splice(i, 1);
-          // If there's a preceding message and it's from the user, remove it too
-          if (i > 0 && reducedHistory[i - 1].role === 'user') {
-            reducedHistory.splice(i - 1, 1);
-            i--; // Adjust index to account for the removed preceding message
+      while (i < workingMessages.length) {
+        if (workingMessages[i].role === 'assistant' && (workingMessages[i].text === ERROR_MESSAGE || workingMessages[i].text === 'Sorry, I am burning out at this point. Please try again later!')) {
+          workingMessages.splice(i, 1);
+          if (i > 0 && workingMessages[i - 1].role === 'user') {
+            workingMessages.splice(i - 1, 1);
+            i--;
           }
         } else {
-          i++; // Move to the next message only if no removal occurred
+          i++;
         }
       }
-      // Update reducedHistory in App.tsx
+      const reducedHistory = initialHint ? [initialHint, ...workingMessages] : [];
+
+      // Step 3: Temporarily update reducedHistory without the last pair of message and fetchAPI 
       setReducedHistory(reducedHistory);
-      
+      console.log('Current reducedHistory:', reducedHistory);
       const hintLevel = getHintLevel(hint);
       const aiResponse = await fetchConversation(reducedHistory, trimmed, hintLevel, problemContent);
 
-      // Imediately add the last pair of new user and assistant messages to the history without waiting new user inputs to trigger the save
+      // Step 4: Imediately add the last pair of new user and assistant messages to the history without waiting new user inputs to trigger the save
       let updatedHistory = [...reducedHistory, newUserMsg, { role: 'assistant', text: aiResponse }];
 
-      // Filter the updated history again for this last pair only 
+      // Step 5: Filter the updated history again for the last pair only 
       i = 0;
       while (i < updatedHistory.length) {
-        if (updatedHistory[i].role === 'assistant' && updatedHistory[i].text === ERROR_MESSAGE) {
+        if (updatedHistory[i].role === 'assistant' && (updatedHistory[i].text === ERROR_MESSAGE || updatedHistory[i].text === 'Sorry, I am burning out at this point. Please try again later!')) {
           updatedHistory.splice(i, 1);
           if (i > 0 && updatedHistory[i - 1].role === 'user') {
             updatedHistory.splice(i - 1, 1);
@@ -219,10 +188,16 @@ const Panel = ({
           i++;
         }
       }
+      
+      // Step 6: Take the last 6 messages (3 pairs) from the filtered list
+      const updatedreducedHistory = updatedHistory.length > 0 ? updatedHistory.slice(1).slice(-6) : [];
 
-      // Update reducedHistory with the filtered history
-      setReducedHistory(updatedHistory);
-
+      // Step 7: Add initialHint in front of updatedreducedHistory
+      const finalReducedHistory = initialHint ? [initialHint, ...updatedreducedHistory] : updatedreducedHistory;
+      console.log('Final updatedHistory:', finalReducedHistory); // Debug: Log the pre-filtered reducedHistory
+      
+      // Step 8: Update reducedHistory with the last message included if valid
+      setReducedHistory(finalReducedHistory);
       setHintMessages(prev => ({
         ...prev,
         [currentHintKey]: [...(prev[currentHintKey] || []), { role: 'assistant', text: aiResponse }]
@@ -574,7 +549,8 @@ const Panel = ({
                 onClick={() => handleDebug(problemContent, setDebugResponse)}
                 disabled={isDebugDisabled}
                 className={cn(
-                  "px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
+                  "px-6 py-2 rounded-lg bg-orange-200 hover:bg-orange-300 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
+                  !isDebugDisabled && "flashing-red-border", // Flashing red border when enabled
                   isDebugDisabled && "opacity-50 cursor-not-allowed"
                 )}
               >
@@ -733,6 +709,24 @@ const Panel = ({
           currentLanguage={currentLanguage}
         />
       )}
+
+      {/* Inline CSS for flashing red border */}
+      <style>
+        {`
+          .flashing-red-border {
+            border: 2px solid red;
+            animation: flash 2s infinite;
+            box-shadow: 0 0 10px red; 
+          }
+          
+          @keyframes flash {
+            0% { border-color: red; box-shadow: 0 0 10px red; }
+            50% { border-color: transparent; box-shadow: 0 0 0 transparent; }
+            100% { border-color: red; box-shadow: 0 0 10px red; }
+          }
+        `}
+      </style>
+
     </div>
   );
 };

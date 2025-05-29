@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import Panel from './Panel'
 import LCPLogo from '@/assets/LCP.png'
 import { DebugPatch } from '@/utils/debugger';
+import BugIcon from '@/assets/bug-icon.png';
+import { isSubmissionsPage, isExactLeetCodeProblemPage, cn } from '@/utils/browser';
 
 const App = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
@@ -70,7 +72,7 @@ const App = () => {
       aiFeedback,
       timeComplexity,
       optimizedScore,
-      reducedHistory // Save reducedHistory
+      reducedHistory 
     }
     chrome.storage.local.set({ [problemKey]: state }, () => {
       console.log('State saved for problem:', problemKey)
@@ -94,7 +96,6 @@ const App = () => {
         setTimeComplexity(storedState.timeComplexity)
         setOptimizedScore(storedState.optimizedScore)
         setReducedHistory(storedState.reducedHistory || [])
-        // Log reducedHistory when loaded
         console.log('Loaded reducedHistory:', JSON.stringify(
           (storedState.reducedHistory || []).map((msg: { role: string; text: string }) => ({
             role: msg.role === 'bot' ? 'assistant' : msg.role,
@@ -164,6 +165,34 @@ const App = () => {
     startY.current = e.clientY
   }
 
+  // Check debug eligibility
+  const checkDebugEligibility = () => {
+    
+    const isSubmission = isSubmissionsPage();
+    const isProblemPage = isExactLeetCodeProblemPage();
+
+    let isAccepted = false;
+    let hasResult = false;
+
+    if (isSubmission) {
+      const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
+      isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
+    } else if (isProblemPage) {
+      const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
+      hasResult = !!consoleResultElem;
+      isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
+    }
+
+    setIsDebugDisabled(!((isSubmission && !isAccepted) || (isProblemPage && hasResult && !isAccepted)));
+  };
+
+  useEffect(() => {
+    checkDebugEligibility();
+    const observer = new MutationObserver(checkDebugEligibility);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
       {!isPanelOpen && !isHidden && (
@@ -173,42 +202,50 @@ const App = () => {
           className="fixed z-[999999] cursor-pointer group"
           style={{ top: `${positionY}px`, right: '0px' }}
         >
-            {/* Absolute Close Button */}
+          {/* Absolute Close Button */}
+          <div
+            className="absolute -top-2 -left-2 bg-orange-400 hover:bg-orange-500 rounded-full w-5 h-5 hidden group-hover:flex items-center justify-center shadow-lg z-50 transition-colors duration-200"
+            onClick={(e) => {
+              e.stopPropagation()
+              const root = document.getElementById('leetcopilot-root')
+              if (root) root.remove()
+            }}
+          >
+            <span className="text-white text-sm font-bold leading-none">✕</span>
+          </div>
+          {/* Bug Icon at Bottom Left */}
+          {!isDebugDisabled && (
             <div
-                className="absolute -top-2 -left-2 bg-orange-400 hover:bg-orange-500 rounded-full w-5 h-5 hidden group-hover:flex items-center justify-center shadow-lg z-50 transition-colors duration-200"
-                onClick={(e) => {
-                e.stopPropagation()
-                const root = document.getElementById('leetcopilot-root')
-                if (root) root.remove()
-                }}
+              className="absolute -bottom-2 -left-2 flex items-center justify-center shadow-lg z-50"
             >
-                <span className="text-white text-sm font-bold leading-none">✕</span>
+              <img src={BugIcon} alt="Bug" className="w-4 h-4" />
             </div>
-            {/* Outer Container */}
-            <div className="relative flex items-center transition-all duration-300 ease-in-out group-hover:w-[85px] w-[60px] h-[60px] overflow-hidden shadow-lg">
-                {/* Main Body (rounded only left) */}
-                <div className="flex items-center h-full bg-orange-100 rounded-l-md">
-                    {/* Logo Section */}
-                    <div
-                    className="flex items-center justify-center w-[60px] h-[60px]"
-                    onClick={(e) => {
-                        const dragDistance = Math.abs(startY.current - e.clientY)
-                        if (dragDistance < 5) togglePanel()
-                    }}
-                    >
-                    <img src={LCPLogo} alt="LCP" className="h-9 w-auto pointer-events-none" />
-                    </div>
-                </div>
+          )}
+          {/* Outer Container */}
+          <div className="relative flex items-center transition-all duration-300 ease-in-out group-hover:w-[85px] w-[60px] h-[60px] overflow-hidden shadow-lg">
+            {/* Main Body (rounded only left) */}
+            <div className="flex items-center h-full bg-orange-100 rounded-l-md">
+              {/* Logo Section */}
+              <div
+                className="flex items-center justify-center w-[60px] h-[60px]"
+                onClick={(e) => {
+                  const dragDistance = Math.abs(startY.current - e.clientY)
+                  if (dragDistance < 5) togglePanel()
+                }}
+              >
+                <img src={LCPLogo} alt="LCP" className="h-9 w-auto pointer-events-none" />
+              </div>
+            </div>
 
-                {/* Slide-out Segment (no border radius at all) */}
-                <div className="absolute top-0 right-0 flex items-center justify-center w-[25px] h-full bg-orange-300 hover:bg-orange-400 group-hover:flex hidden rounded-none transition-colors duration-200 cursor-grab">
-                    <div className="grid grid-cols-2 gap-x-[2px] gap-y-[2px]">
-                    {[...Array(6)].map((_, i) => (
-                        <div key={i} className="w-1 h-1 bg-white rounded-full" />
-                    ))}
-                    </div>
-                </div>
+            {/* Slide-out Segment (no border radius at all) */}
+            <div className="absolute top-0 right-0 flex items-center justify-center w-[25px] h-full bg-orange-300 hover:bg-orange-400 group-hover:flex hidden rounded-none transition-colors duration-200 cursor-grab">
+              <div className="grid grid-cols-2 gap-x-[2px] gap-y-[2px]">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="w-1 h-1 bg-white rounded-full" />
+                ))}
+              </div>
             </div>
+          </div>
         </div>
       )}
 
@@ -239,8 +276,6 @@ const App = () => {
           debugPatch={debugPatch}
           setDebugPatch={setDebugPatch}
           isDebugDisabled={isDebugDisabled}
-          setIsDebugDisabled={setIsDebugDisabled}
-          reducedHistory={reducedHistory}
           setReducedHistory={setReducedHistory}
         />
       )}
