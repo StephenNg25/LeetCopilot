@@ -687,7 +687,10 @@ const Panel = ({
                   await handleDebug(problemContent, setDebugResponse);
                 }}
                 onDiscard={() => {
-                  throw new Error('Function not implemented.');
+                  // Reset debug state and collapse the card
+                  setDebugPatch(null);
+                  setDebugResponse(null);
+                  setCardHeight(0);
                 }}
               />
             </div>

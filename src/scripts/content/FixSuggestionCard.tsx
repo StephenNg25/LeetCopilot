@@ -61,26 +61,64 @@ const FixSuggestionCard: React.FC<FixSuggestionCardProps> = ({
     };
   };
 
-  // Split explanation into parts based on backticks
-  const explanationParts = explanation.split(/(`[^`]+`)/g);
+  // Split explanation into lines to preserve newlines
+  const explanationLines = explanation.split('\n').map(line => line.trim());
+
+  // Function to parse bold (**text**) and backtick (`text`) within a line
+  const parseLine = (line: string, lineIndex: number) => {
+    // First, split on backticks to handle inline code
+    let parts = line.split(/(`[^`]+`)/g);
+    // Then, within each non-backtick part, split on ** for bold
+    const renderedParts: JSX.Element[] = [];
+    parts.forEach((part, partIndex) => {
+      if (part.startsWith('`') && part.endsWith('`')) {
+        // Handle backtick-enclosed text
+        renderedParts.push(
+          <span
+            key={`${lineIndex}-${partIndex}`}
+            className="bg-orange-400/10 text-orange-500 font-mono text-sm px-1.5 py-0.5 rounded"
+          >
+            {part.slice(1, -1)}
+          </span>
+        );
+      } else {
+        // Split on ** for bold text, ensuring pairs of ** are matched
+        const boldParts = part.split(/\*\*(.*?)\*\*/g);
+        boldParts.forEach((boldPart, boldIndex) => {
+          if (boldIndex % 2 === 1) {
+            // Odd indices are the text between ** **, so render as bold
+            renderedParts.push(
+              <span
+                key={`${lineIndex}-${partIndex}-${boldIndex}`}
+                className="font-bold"
+              >
+                {boldPart}
+              </span>
+            );
+          } else {
+            // Even indices are outside ** **, render as normal text
+            renderedParts.push(
+              <span key={`${lineIndex}-${partIndex}-${boldIndex}`}>
+                {boldPart}
+              </span>
+            );
+          }
+        });
+      }
+    });
+    return renderedParts;
+  };
 
   return (
     <div className="border rounded-md shadow bg-white p-3 space-y-2 mt-2 relative">
-      {/* Render explanation with styled backtick content */}
-      <p className="text-sm text-gray-700">
-        {explanationParts.map((part, index) =>
-          part.startsWith('`') && part.endsWith('`') ? (
-            <span
-              key={index}
-              className="bg-orange-400/10 text-orange-500 font-mono text-sm px-1.5 py-0.5 rounded"
-            >
-              {part.slice(1, -1)}
-            </span>
-          ) : (
-            <span key={index}>{part}</span>
-          )
-        )}
-      </p>
+      {/* Render explanation with preserved newlines, styled backtick content, and bold text */}
+      <div className="text-sm text-gray-700">
+        {explanationLines.map((line, lineIndex) => (
+          <p key={lineIndex} className="mb-1 last:mb-0">
+            {parseLine(line, lineIndex)}
+          </p>
+        ))}
+      </div>
 
       <pre className="bg-gray-100 text-sm p-2 rounded overflow-x-auto font-mono whitespace-pre-wrap">
         {(() => {
