@@ -310,11 +310,16 @@ const Panel = ({
     if (isErrorVisible) {
       const timer = setTimeout(() => {
         setIsErrorVisible(false); // Hide the error display after 5 seconds
+        if (!parsed) {
+          // Debug failed: reset debugResponse after the error display is hidden
+          setDebugResponse(null);
+          setParsed(null); // Ensure parsed is reset for the next attempt
+        }
       }, 5000);
 
       return () => clearTimeout(timer); // Clear the timer if the component unmounts or `isErrorVisible` changes
     }
-  }, [isErrorVisible]);
+  }, [isErrorVisible, parsed, setDebugResponse]);
 
   useEffect(() => {
     if (debugPatch && fixCardRef.current) {
@@ -350,6 +355,15 @@ const Panel = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Modified onClose to reset debug states on error
+  const handleClose = () => {
+    if (debugResponse !== null && parsed === null) {
+      setDebugResponse(null);
+      setParsed(null);
+    }
+    onClose();
+  };
+
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -368,7 +382,7 @@ const Panel = ({
           <div className="flex gap-2">
             <button onClick={onReset} className="text-gray-500 hover:text-blue-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Reset all states">↻</button>
             <button onClick={onReset} className="text-gray-500 hover:text-blue-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Setting">⚙</button>
-            <button onClick={onClose} className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Close">✕</button>
+            <button onClick={handleClose} className="text-gray-500 hover:text-red-400 transition-colors duration-200 h-6 w-6 text-sm rounded-full flex items-center justify-center hover:bg-gray-100" title="Close">✕</button>
           </div>
         </div>
         <div className="rounded-xl bg-gray-50 p-1 shadow-sm border border-gray-200/30">
@@ -412,7 +426,7 @@ const Panel = ({
         </div>
       </p>
 
-      <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-between flex-shrink-0">
+      <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-center flex-shrink-0">
         <button onClick={scrollLeft} disabled={languageIndex === 0} className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30">◀</button>
         <div className="flex w-full justify-center">
           {languages.map((lang, i) => (
@@ -694,7 +708,7 @@ const Panel = ({
           </div>
         </>
       )}
-      {debugResponse !== null && parsed === null && <ErrorDisplay isVisible={isErrorVisible} onDismiss={() => setIsErrorVisible(false)} />}
+      {debugResponse !== null && parsed === null && <ErrorDisplay isVisible={isErrorVisible} onDismiss={() => setIsErrorVisible(false)} setDebugResponse={setDebugResponse} setParsed={setParsed} debugResponse={debugResponse} parsed={parsed} />}
       {isExpanded && (
         <ExpandedHintModal
           onClose={() => setIsExpanded(false)}

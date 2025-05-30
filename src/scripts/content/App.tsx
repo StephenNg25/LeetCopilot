@@ -65,8 +65,6 @@ const App = () => {
       unlockedHints: Array.from(unlockedHints),
       totalAssistance,
       isExpanded,
-      debugResponse,
-      debugPatch,
       isDebugDisabled,
       thoughts,
       aiFeedback,
@@ -88,8 +86,6 @@ const App = () => {
         setUnlockedHints(new Set(storedState.unlockedHints))
         setTotalAssistance(storedState.totalAssistance)
         setIsExpanded(storedState.isExpanded)
-        setDebugResponse(storedState.debugResponse)
-        setDebugPatch(storedState.debugPatch)
         setIsDebugDisabled(storedState.isDebugDisabled)
         setThoughts(storedState.thoughts)
         setAiFeedback(storedState.aiFeedback)
@@ -138,7 +134,7 @@ const App = () => {
     if (currentProblemKey) {
       saveState(currentProblemKey)
     }
-  }, [activeHint, hintMessages, unlockedHints, totalAssistance, isExpanded, debugResponse, debugPatch, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory])
+  }, [activeHint, hintMessages, unlockedHints, totalAssistance, isExpanded, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
