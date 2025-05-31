@@ -174,7 +174,7 @@ const App = () => {
       const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
       isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
     } else if (isProblemPage) {
-      const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
+      const consoleResultElem = document.querySelector('[data-e2e-locator="console-result"]');
       hasResult = !!consoleResultElem;
       isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
     }

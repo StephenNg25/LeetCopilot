@@ -47,7 +47,7 @@ export const handleDebug = async (
     const acceptedElem = document.querySelector('span[data-e2e-locator="submission-result"]');
     isAccepted = acceptedElem?.textContent?.trim().toLowerCase() === 'accepted';
   } else if (isProblemPage) {
-    const consoleResultElem = document.querySelector('span[data-e2e-locator="console-result"]');
+    const consoleResultElem = document.querySelector('[data-e2e-locator="console-result"]');
     hasResult = !!consoleResultElem;
     isAccepted = consoleResultElem?.textContent?.trim().toLowerCase() === 'accepted';
   }
@@ -70,7 +70,7 @@ export const handleDebug = async (
         console.log("Root Element for Submission:", rootElement);
       } else if (isProblemPage) {
         // Scope to problem page container with specific error context
-        const problemContainer = document.querySelector('div.mx-5.my-4.space-y-4 span[data-e2e-locator="console-result"]')?.closest('div.mx-5.my-4.space-y-4');
+        const problemContainer = document.querySelector('div.space-y-4 [data-e2e-locator="console-result"]')?.closest('div.space-y-4');
         rootElement = problemContainer;
         console.log("Root Element for Problem:", rootElement);
       }
@@ -98,7 +98,7 @@ export const handleDebug = async (
         const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
         errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
       } else if (isProblemPage) {
-        const errorTypeElem = rootElement.querySelector('span.text-red-s.dark\\:text-dark-red-s[data-e2e-locator="console-result"]');
+        const errorTypeElem = rootElement.querySelector('[data-e2e-locator="console-result"]');
         const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
         errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
       }
@@ -168,8 +168,6 @@ export const handleDebug = async (
     };
 
     const { submittedCode, fullErrorDescription } = await extractSubmissionFromPage();
-    console.log('errorDescription:', fullErrorDescription);
-    console.log('submittedCode:', submittedCode);
 
     const debugResult = await fetchDebugger(problemContent, submittedCode, fullErrorDescription);
     setDebugResponse(debugResult || 'Debugging failed.');
