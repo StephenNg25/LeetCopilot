@@ -1,12 +1,5 @@
 import { fetchDebugger } from '@/utils/fetchdebugger';
-import { isSubmissionsPage } from '@/utils/browser';
-
-// Define the new function for exact problem page matching
-export const isExactLeetCodeProblemPage = () => {
-  // Match exactly https://leetcode.com/problems/problem-title/ or https://leetcode.com/problems/problem-title
-  const pattern = /^https:\/\/leetcode\.com\/problems\/[^/]+\/?$/;
-  return pattern.test(window.location.href);
-};
+import { isSubmissionsPage, isExactLeetCodeProblemPage} from '@/utils/browser';
 
 // Define type for setter functions (React dispatch functions)
 type SetStateAction<T> = React.Dispatch<React.SetStateAction<T>>;
@@ -67,95 +60,94 @@ export const handleDebug = async (
   try {
     const extractSubmissionFromPage = async () => {
       let submittedCode = '';
+
+      // Define the scope for DOM queries
+      let rootElement: Document | Element = document; // Default to global document
+      if (isSubmission) {
+        // Scope to submission page container with specific error context
+        const submissionContainer = document.querySelector('div.flex-col.gap-4.px-4.py-3');
+        rootElement = submissionContainer;
+        console.log("Root Element for Submission:", rootElement);
+      } else if (isProblemPage) {
+        // Scope to problem page container with specific error context
+        const problemContainer = document.querySelector('div.mx-5.my-4.space-y-4 span[data-e2e-locator="console-result"]')?.closest('div.mx-5.my-4.space-y-4');
+        rootElement = problemContainer;
+        console.log("Root Element for Problem:", rootElement);
+      }
+
+      if (!rootElement) {
+        throw new Error('Could not determine the correct panel for scraping.');
+      }
+
+      // Handle "View More" button to expand hidden error details
+      if (isSubmission || isProblemPage) {
+        const viewMoreButton = rootElement.querySelector('div.text-sd-muted-foreground div.flex.items-center.gap-1');
+        if (viewMoreButton) {
+          console.log("Found View More button, attempting to expand...");
+          // Simulate a click to expand the hidden content
+          (viewMoreButton as HTMLElement).click();
+          // Wait briefly to ensure the DOM updates after clicking
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
       // Get error type (e.g., Runtime Error, Time Limit Exceeded, Wrong Answer)
-      const errorTypeElem = document.querySelector('h3[class*="text-red-6"], h3[class*="dark:text-red-60"]');
-      const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
-      const errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
+      let errorType = 'Unknown Error';
+      if (isSubmission) {
+        const errorTypeElem = rootElement.querySelector('h3[class*="text-red-6"], h3[class*="dark:text-red-60"]');
+        const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
+        errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
+      } else if (isProblemPage) {
+        const errorTypeElem = rootElement.querySelector('span.text-red-s.dark\\:text-dark-red-s[data-e2e-locator="console-result"]');
+        const errorTypeRaw = errorTypeElem?.textContent?.trim() || 'Unknown Error';
+        errorType = errorTypeRaw.replace(/(Error|Exceeded|Answer)(\d+)/, '$1\n$2');
+      }
 
       // Get traceback or error message block
-      const tracebackElem = document.querySelector('div.font-menlo.whitespace-pre-wrap[class*="text-red"]');
-      const traceback = tracebackElem?.textContent?.trim() || '';
-
-      // Get input, output, expected, and last executed input values
-      const labelElems = Array.from(document.querySelectorAll('div[class*="text-label"]'));
-      let inputValue = '';
-      let outputValue = '';
-      let expectedValue = '';
-      let lastExecutedInput = '';
-
-      // Debug: Log all labels found to verify selector
-      console.log('Labels found:', labelElems.map(elem => elem.textContent?.trim()));
-
-      for (let i = 0; i < labelElems.length; i++) {
-        const key = labelElems[i].textContent?.trim();
-        const normalizedKey = key?.toLowerCase() || '';
-
-        if (normalizedKey === 'last executed input') {
-          const wrapper = labelElems[i].closest('.flex.flex-col.space-y-2');
-          const groupBlocks = wrapper?.querySelectorAll('.group.relative.rounded-lg');
-
-          let inputPairs: string[] = [];
-          groupBlocks?.forEach(group => {
-            const keyElem = group.querySelector('.text-label-3');
-            const valueElem = group.querySelector('.font-menlo');
-
-            const keyRaw = keyElem?.textContent?.trim();
-            const value = valueElem?.textContent?.trim();
-
-            const key = keyRaw?.replace(/\s*=\s*$/, '');
-            if (key && value) {
-              inputPairs.push(`${key} = ${value}`);
-            }
-          });
-
-          lastExecutedInput = inputPairs.join('\n');
-        } else if (normalizedKey === 'input') {
-          let inputPairs = [];
-          i++; // move to next element after "Input"
-          while (i < labelElems.length) {
-            const nextKey = labelElems[i].textContent?.trim();
-            const nextNormalizedKey = nextKey?.toLowerCase() || '';
-
-            if (nextNormalizedKey === 'output' || nextNormalizedKey === 'expected') {
-              i--;
-              break;
-            }
-
-            if (/^\[.*\]$/.test(nextKey) || /^".*"$/.test(nextKey) || /^[\d.]+$/.test(nextKey)) {
-              i++;
-              continue;
-            }
-
-            const nextValueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-            const nextValue = nextValueElem?.textContent?.trim() || '';
-
-            if (nextKey && nextValue) {
-              const cleanedKey = nextKey.replace(/\s*=\s*$/, '');
-              inputPairs.push(`${cleanedKey} = ${nextValue}`);
-            }
-            i++;
+      let traceback = '';
+      if (isSubmission) {
+        const tracebackElem = rootElement.querySelector('div.font-menlo.whitespace-pre-wrap[class*="text-red"]');
+        traceback = tracebackElem?.textContent?.trim() || '';
+        // If traceback is incomplete, try to find hidden content
+        if (traceback && !traceback.includes('location: class Solution')) {
+          const hiddenTraceback = rootElement.querySelector('div.font-menlo.whitespace-pre-wrap[class*="text-red"] > div[style*="display: none"], div.font-menlo.whitespace-pre-wrap[class*="text-red"] > div[style*="height"]');
+          if (hiddenTraceback) {
+            (hiddenTraceback as HTMLElement).style.display = 'block';
+            traceback = rootElement.querySelector('div.font-menlo.whitespace-pre-wrap[class*="text-red"]')?.textContent?.trim() || traceback;
           }
-          inputValue = inputPairs.join('\n');
-        } else if (normalizedKey === 'output') {
-          const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-          outputValue = valueElem?.textContent?.trim() || '';
-        } else if (normalizedKey === 'expected') {
-          const valueElem = labelElems[i].parentElement?.querySelector('div.font-menlo');
-          expectedValue = valueElem?.textContent?.trim() || '';
+        }
+      } else if (isProblemPage) {
+        const tracebackElem = rootElement.querySelector('div.font-menlo.whitespace-pre-wrap.text-xs.text-red-60.dark\\:text-red-60');
+        traceback = tracebackElem?.textContent?.trim() || '';
+        // If traceback is incomplete, try to find hidden content
+        if (traceback && !traceback.includes('expected')) {
+          const hiddenTraceback = rootElement.querySelector('div.font-menlo.whitespace-pre-wrap.text-xs.text-red-60.dark\\:text-red-60 > div[style*="display: none"], div.font-menlo.whitespace-pre-wrap.text-xs.text-red-60.dark\\:text-red-60 > div[style*="height"]');
+          if (hiddenTraceback) {
+            (hiddenTraceback as HTMLElement).style.display = 'block';
+            traceback = rootElement.querySelector('div.font-menlo.whitespace-pre-wrap.text-xs.text-red-60.dark\\:text-red-60')?.textContent?.trim() || traceback;
+          }
         }
       }
 
       // Determine submitted code based on page type
       if (isSubmission) {
-        // Scrape from submissions page
-        const codeElement = document.querySelector('pre code.language-python');
-        if (codeElement) {
-          submittedCode = Array.from(codeElement.childNodes)
-            .map(node => node.textContent || '')
-            .join('')
-            .trim();
-        } else {
-          const fallbackLines = Array.from(document.querySelectorAll('.view-lines > div'));
+        // Try scraping code for each supported language within the root element
+        const languages = ['python', 'java', 'cpp'];
+        for (const lang of languages) {
+          const codeElement = rootElement.querySelector(`pre code.language-${lang}`);
+          console.log("language for submitted:", codeElement);
+          if (codeElement) {
+            submittedCode = Array.from(codeElement.childNodes)
+              .map(node => node.textContent || '')
+              .join('')
+              .trim();
+            break; // Exit loop once we find a match
+          }
+        }
+
+        // If no code was found for any language, fall back to view-lines
+        if (!submittedCode) {
+          const fallbackLines = Array.from(rootElement.querySelectorAll('.view-lines > div'));
           submittedCode = fallbackLines
             .map(line => line.textContent || '')
             .join('\n')
@@ -166,20 +158,8 @@ export const handleDebug = async (
         submittedCode = await injectScriptAndGetEditorContent();
       }
 
-      // Construct full error description
+      // Construct full error description with only error type and traceback
       let fullErrorDescription = `${errorType}`;
-      if (lastExecutedInput) {
-        fullErrorDescription += `\n\nLast Executed Input:\n${lastExecutedInput}`;
-      }
-      if (inputValue) {
-        fullErrorDescription += `\n\nInput:\n${inputValue}`;
-      }
-      if (outputValue) {
-        fullErrorDescription += `\n\nOutput:\n${outputValue}`;
-      }
-      if (expectedValue) {
-        fullErrorDescription += `\n\nExpected:\n${expectedValue}`;
-      }
       if (traceback) {
         fullErrorDescription += `\n\n${traceback}`;
       }
