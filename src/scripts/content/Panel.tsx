@@ -878,6 +878,7 @@ const Panel = ({
           setUserInput={setUserInput}
           handleSendMessage={handleSendMessage}
           currentLanguage={currentLanguage}
+          setLanguageIndex={setLanguageIndex} // Pass setLanguageIndex to ExpandedHintModal
         />
       )}
 
