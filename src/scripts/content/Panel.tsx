@@ -1,15 +1,14 @@
+import WLCPLogo from '@/assets/LCP-W.png';
+import ExpandIcon from '@/assets/expand.png';
+import React, { useState, useEffect, useRef } from 'react';
+import { Lock, Unlock, BookOpen, CheckCircle2, Star, Copy, Check } from 'lucide-react';
 import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
 import { fetchThoughtsEvaluation } from '@/utils/fetchthoughts';
 import { isSubmissionsPage, isLeetCodeProblemPage, cn } from '@/utils/browser';
-import { handleDebug } from '@/utils/debugger'; 
-import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Unlock, BookOpen, CheckCircle2, Star } from 'lucide-react';
-import WLCPLogo from '@/assets/LCP-W.png';
-import ExpandIcon from '@/assets/expand.png';
+import { handleDebug, parsePatchResponse} from '@/utils/debugger'; 
 import ExpandedHintModal from './ExpandedHintChat';
-import { parsePatchResponse } from '@/utils/debugger';
 import FixSuggestionCard from './FixSuggestionCard';
 import ErrorDisplay from './ErrorDisplay';
 
@@ -364,6 +363,159 @@ const Panel = ({
     onClose();
   };
 
+  const parseSimpleMarkdown = (text: string) => {
+    const lines = text.split('\n');
+    const elements: JSX.Element[] = [];
+    let bulletList: JSX.Element[] = [];
+    let isInBulletList = false;
+  
+    lines.forEach((line, index) => {
+      // Handle headers
+      if (line.startsWith('### ')) {
+        // If we were in a bullet list, close it before adding the header
+        if (isInBulletList && bulletList.length > 0) {
+          elements.push(
+            <ul key={`ul-${index}`} className="list-disc pl-5 space-y-1 text-gray-700">
+              {bulletList}
+            </ul>
+          );
+          bulletList = [];
+          isInBulletList = false;
+        }
+        elements.push(
+          <h3 key={index} className="text-lg font-bold text-gray-700 mt-2 mb-1">
+            {line.slice(4)}
+          </h3>
+        );
+      } else if (line.startsWith('# ')) {
+        // If we were in a bullet list, close it before adding the header
+        if (isInBulletList && bulletList.length > 0) {
+          elements.push(
+            <ul key={`ul-${index}`} className="list-disc pl-5 space-y-1 text-gray-700">
+              {bulletList}
+            </ul>
+          );
+          bulletList = [];
+          isInBulletList = false;
+        }
+        elements.push(
+          <h1 key={index} className="text-xl font-bold text-gray-800 mt-2 mb-1">
+            {line.slice(2)}
+          </h1>
+        );
+      } else if (line.trim().startsWith('* ')) {
+        // Handle bullet points
+        isInBulletList = true;
+        const bulletText = line.trim().slice(2); // Remove "* "
+        // Parse inline formatting within the bullet text
+        const parts = bulletText.split(/(\*\*[^\*]+\*\*|\*[^\*]+\*|`[^`]+`)/g);
+        const bulletElements: JSX.Element[] = parts.map((part, partIndex) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong
+                key={partIndex}
+                className="font-bold text-gray-800"
+              >
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          if (part.startsWith('*') && part.endsWith('*')) {
+            return (
+              <em
+                key={partIndex}
+                className="italic text-gray-700"
+              >
+                {part.slice(1, -1)}
+              </em>
+            );
+          }
+          if (part.startsWith('`') && part.endsWith('`')) {
+            return (
+              <code
+                key={partIndex}
+                className="bg-gray-200 text-gray-800 font-mono text-sm px-1 py-0.5 rounded"
+              >
+                {part.slice(1, -1)}
+              </code>
+            );
+          }
+          return <span key={partIndex}>{part}</span>;
+        });
+  
+        bulletList.push(
+          <li key={index} className="text-sm">
+            {bulletElements}
+          </li>
+        );
+      } else {
+        // Close any open bullet list before processing a regular line
+        if (isInBulletList && bulletList.length > 0) {
+          elements.push(
+            <ul key={`ul-${index}`} className="list-disc pl-5 space-y-1 text-gray-700">
+              {bulletList}
+            </ul>
+          );
+          bulletList = [];
+          isInBulletList = false;
+        }
+  
+        // Handle inline formatting: **bold**, *italic*, and `code`
+        const parts = line.split(/(\*\*[^\*]+\*\*|\*[^\*]+\*|`[^`]+`)/g);
+        const lineElements: JSX.Element[] = parts.map((part, partIndex) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong
+                key={partIndex}
+                className="font-bold text-gray-800"
+              >
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          if (part.startsWith('*') && part.endsWith('*')) {
+            return (
+              <em
+                key={partIndex}
+                className="italic text-gray-700"
+              >
+                {part.slice(1, -1)}
+              </em>
+            );
+          }
+          if (part.startsWith('`') && part.endsWith('`') && part !== '```'){
+            return (
+              <code
+                key={partIndex}
+                className="bg-gray-200 text-gray-800 font-mono text-sm px-1 py-0.5 rounded"
+              >
+                {part.slice(1, -1)}
+              </code>
+            );
+          }
+          return <span key={partIndex}>{part}</span>;
+        });
+  
+        elements.push(
+          <p key={index} className="text-sm text-gray-700 break-words whitespace-pre-wrap">
+            {lineElements}
+          </p>
+        );
+      }
+    });
+  
+    // Close any remaining bullet list at the end
+    if (isInBulletList && bulletList.length > 0) {
+      elements.push(
+        <ul key="ul-end" className="list-disc pl-5 space-y-1 text-gray-700">
+          {bulletList}
+        </ul>
+      );
+    }
+  
+    return elements;
+  };
+
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -472,7 +624,9 @@ const Panel = ({
                       {msg.role === 'assistant' ? (
                         <>
                           <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
-                          <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap">{msg.text}</div>
+                          <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap">
+                            {parseSimpleMarkdown(msg.text)}
+                          </div>
                         </>
                       ) : (
                         <div className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-zinc-900 max-w-[70%] break-words whitespace-pre-wrap break-all">

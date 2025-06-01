@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Check, Lock as LockIcon, Copy, ChevronDown } from 'lucide-react';
 import ShrinkIcon from '@/assets/shrink-D.png';
-
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import rehypeHighlight from 'rehype-highlight';
