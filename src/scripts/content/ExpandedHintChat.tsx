@@ -19,11 +19,60 @@ const languages = ['Python', 'C++', 'Java']; // Define languages for the dropdow
 
 const highlightTerms = (text) => {
   if (typeof text !== 'string') return text;
+
   const terms = ['hash[-]?table', 'hash-based', 'arrays?', 'stack', 'queue', 'linked lists?', 
                  'binary tree', 'graph', 'DFS', 'BFS', 'iterative', 'recursive', 'brute[-]?force',
                  'sorting', 'merging', 'binary search', 'optimal'];
   const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
-  return text.replace(regex, (match) => `<span class="text-orange-400 font-semibold">${match}</span>`);
+
+  // Split the text into segments: code blocks and non-code-block sections
+  const segments = [];
+  let remainingText = text;
+  let inCodeBlock = false;
+  let currentIndex = 0;
+
+  while (currentIndex < text.length) {
+    const nextCodeFence = remainingText.indexOf('```');
+    if (nextCodeFence === -1) {
+      // No more code fences, treat the rest as non-code-block text
+      segments.push({ type: 'text', content: remainingText });
+      break;
+    }
+
+    if (!inCodeBlock) {
+      // Add the text before the code block
+      if (nextCodeFence > 0) {
+        segments.push({ type: 'text', content: remainingText.substring(0, nextCodeFence) });
+      }
+      // Move past the opening ```
+      inCodeBlock = true;
+      remainingText = remainingText.substring(nextCodeFence + 3);
+      currentIndex += nextCodeFence + 3;
+    } else {
+      // Find the end of the code block
+      const endCodeFence = remainingText.indexOf('```');
+      if (endCodeFence === -1) {
+        // No closing fence, treat the rest as part of the code block
+        segments.push({ type: 'code', content: '```' + remainingText });
+        break;
+      }
+      // Add the code block, including the fences
+      segments.push({ type: 'code', content: '```' + remainingText.substring(0, endCodeFence + 3) });
+      inCodeBlock = false;
+      remainingText = remainingText.substring(endCodeFence + 3);
+      currentIndex += endCodeFence + 3;
+    }
+  }
+
+  // Process segments: apply highlighting to non-code-block text only
+  const processedSegments = segments.map(segment => {
+    if (segment.type === 'code') {
+      return segment.content; // Preserve code blocks unchanged
+    }
+    return segment.content.replace(regex, (match) => `<span class="text-orange-400 font-semibold">${match}</span>`);
+  });
+
+  return processedSegments.join('');
 };
 
 const components = {
