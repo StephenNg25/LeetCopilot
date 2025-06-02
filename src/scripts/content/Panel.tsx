@@ -33,7 +33,7 @@ const getHintLevel = (percent: number): number => {
   return levels.includes(percent) ? percent : 10;
 };
 
-const ERROR_MESSAGE = "I’m sorry, I can only assist based on the current hint.";
+const ERROR_MESSAGE = "I'm sorry, I can only assist based on the current hint.";
 
 // Injecting Script for Selecting All Monaco Editor (monaco-select-all.js)
 function injectScriptBySrc(srcPath: string) {
