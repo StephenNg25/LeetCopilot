@@ -84,6 +84,7 @@ const Panel = ({
   const fixCardRef = useRef<HTMLDivElement>(null);
   const [parsed, setParsed] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false); // New state for tracking unlock loading
 
   const currentLanguage = languages[languageIndex];
   // Create a key for language-specific hints (30, 40, 100)
@@ -213,6 +214,7 @@ const Panel = ({
   };
 
   const handleUnlockHint = async (percent: number, language: string) => {
+    setIsUnlocking(true); // Start loading animation
     try {
       const languageMap = {
         'Python': 'Python',
@@ -253,6 +255,8 @@ const Panel = ({
       setTotalAssistance(Math.min(100, total));
     } catch (error) {
       console.error('Failed to unlock hint:', error);
+    } finally {
+      setIsUnlocking(false); // Stop loading animation
     }
   };
 
@@ -434,7 +438,7 @@ const Panel = ({
             return (
               <code
                 key={partIndex}
-                className="bg-gray-200 text-gray-800 font-mono text-sm px-1 py-0.5 rounded"
+                className="bg-orange-200 font-mono text-sm px-1 py-0.5 rounded"
               >
                 {part.slice(1, -1)}
               </code>
@@ -487,7 +491,7 @@ const Panel = ({
             return (
               <code
                 key={partIndex}
-                className="bg-gray-200 text-gray-800 font-mono text-sm px-1 py-0.5 rounded"
+                className="bg-orange-200 font-mono text-sm px-1 py-0.5 rounded"
               >
                 {part.slice(1, -1)}
               </code>
@@ -598,7 +602,7 @@ const Panel = ({
                 "hover:bg-gray-50 border", 
                 activeHint === percent 
                   ? "border-orange-400/80 bg-white text-orange-500 shadow-sm rounded-lg" 
-                  : "border-gray-100 text-gray-500"
+                  : "border-gray-100 text-gray-500 shadow-sm rounded-lg"
               )}
             > 
               {unlockedHints.has(percent >= 30 ? `${percent}-${currentLanguage}` : `${percent}`) ? (
@@ -623,8 +627,8 @@ const Panel = ({
                     <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
                       {msg.role === 'assistant' ? (
                         <>
-                          <div className="h-6 w-6 flex items-center justify-center text-lg">🤓</div>
-                          <div className="text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap">
+                          <div className="h-6 w-6 flex items-center justify-center text-lg mt-1">🤓</div>
+                          <div className="relative bg-orange-100 rounded-lg px-4 py-3 text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap speech-bubble">
                             {parseSimpleMarkdown(msg.text)}
                           </div>
                         </>
@@ -693,20 +697,27 @@ const Panel = ({
                 </div>
               </div>
             ) : (
-              <>
-                <p className="text-lg text-zinc-700 leading-relaxed mb-3">
+              <div className="flex flex-col items-center justify-center flex-1 text-center">
+                <p className="text-lg text-zinc-700 leading-relaxed mb-4 text-center">
                   {hintData.find(h => h.percent === activeHint)?.text || ''}<br />
-                  <span className="text-sm text-gray-400">Language: {currentLanguage}</span>
+                  <span className="text-sm text-gray-400">
+                    Language: {activeHint <= 20 ? 'Python, C++, Java' : currentLanguage}
+                  </span>
                 </p>
-                <div className="flex justify-center mb-3">
-                  <button onClick={() => handleUnlockHint(activeHint, currentLanguage)}
-                          className="px-8 py-2.5 bg-orange-400 text-white font-medium text-base rounded-lg
-                                     transition-all duration-200 hover:bg-orange-500 focus:outline-none focus:ring-2
-                                     focus:ring-orange-400/30 shadow-sm hover:shadow-md flex items-center justify-center">
-                                     UNLOCK
-                  </button>
+                <button
+                  onClick={() => handleUnlockHint(activeHint, currentLanguage)}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg shadow-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  UNLOCK
+                </button>
+              </div>
+            )}
+            {isUnlocking && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                <div className="relative w-12 h-12">
+                  <div className="custom-spinner w-full h-full border-6 border-t-orange-500 border-gray-200 rounded-full animate-spin"></div>
                 </div>
-              </>
+              </div>
             )}
           </div>
           
@@ -882,7 +893,7 @@ const Panel = ({
         />
       )}
 
-      {/* Inline CSS for flashing red border */}
+      {/* Inline CSS for flashing red border, loading spinner and speech bubble */}
       <style>
         {`
           .flashing-red-border {
@@ -895,6 +906,32 @@ const Panel = ({
             0% { border-color: red; box-shadow: 0 0 10px red; }
             50% { border-color: transparent; box-shadow: 0 0 0 transparent; }
             100% { border-color: red; box-shadow: 0 0 10px red; }
+          }
+           
+          .custom-spinner {
+            border-top-color: #f97316; /* Orange-500 */
+            animation: spin 1s linear infinite;
+          }
+
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
+          .speech-bubble {
+            position: relative;
+          }
+
+          .speech-bubble::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 12px;
+            width: 0;
+            height: 0;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-right: 8px solid #ffedd5; /* Matches bg-orange-100 */
           }
         `}
       </style>

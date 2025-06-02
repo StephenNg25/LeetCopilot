@@ -21,7 +21,7 @@ const highlightTerms = (text: string) => {
 
   const terms = ['hash[-]?table', 'hash-based', 'arrays?', 'stack', 'queue', 'linked lists?', 
                  'binary tree', 'graph', 'DFS', 'BFS', 'iterative', 'recursive', 'brute[-]?force',
-                 'sorting', 'merging', 'binary search', 'optimal'];
+                 'sorting', 'merging', 'binary search', 'optimal', 'most'];
   const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
   
   // Split the text into segments: code blocks and non-code-block sections
