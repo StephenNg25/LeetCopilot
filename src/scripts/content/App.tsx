@@ -1,19 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react'
-import Panel from './Panel'
-import LCPLogo from '@/assets/LCP.png'
+import React, { useEffect, useRef, useState } from 'react';
+import Panel from './Panel';
+import LCPLogo from '@/assets/LCP.png';
 import { DebugPatch } from '@/utils/debugger';
 import BugIcon from '@/assets/bug-icon.png';
 import { isSubmissionsPage, isExactLeetCodeProblemPage, cn } from '@/utils/browser';
 
 const App = () => {
-  const [isPanelOpen, setIsPanelOpen] = useState(false)
-  const [isHidden, setIsHidden] = useState(false)
-  const [positionY, setPositionY] = useState(300)
-  const startY = useRef(0)
-  const dragRef = useRef<HTMLDivElement | null>(null)
-  const isDragging = useRef(false)
-  const offsetY = useRef(0)
-  const [currentProblemKey, setCurrentProblemKey] = useState<string | null>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [positionY, setPositionY] = useState(300);
+  const startY = useRef(0);
+  const dragRef = useRef<HTMLDivElement | null>(null);
+  const isDragging = useRef(false);
+  const offsetY = useRef(0);
+  const [currentProblemKey, setCurrentProblemKey] = useState<string | null>(null);
 
   // Lifted thought eval states from Panel to App
   const [thoughts, setThoughts] = useState('');
@@ -22,17 +22,19 @@ const App = () => {
   const [optimizedScore, setOptimizedScore] = useState('0');
 
   // Lifted state from Panel to App
-  const [activeHint, setActiveHint] = useState(10)
-  const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({})
-  const [unlockedHints, setUnlockedHints] = useState(new Set<number>())
-  const [totalAssistance, setTotalAssistance] = useState(0)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [activeHint, setActiveHint] = useState(10);
+  const [hintMessages, setHintMessages] = useState<Record<number, { role: string; text: string }[]>>({});
+  const [unlockedHints, setUnlockedHints] = useState(new Set<number>());
+  const [totalAssistance, setTotalAssistance] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   // Lifted debug states from Panel to App
-  const [debugResponse, setDebugResponse] = useState<string | null>(null)
-  const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null)
-  const [isDebugDisabled, setIsDebugDisabled] = useState(true)
-  // New state for reducedHistory
-  const [reducedHistory, setReducedHistory] = useState<{ role: string; text: string }[]>([])
+  const [debugResponse, setDebugResponse] = useState<string | null>(null);
+  const [debugPatch, setDebugPatch] = useState<DebugPatch | null>(null);
+  const [isDebugDisabled, setIsDebugDisabled] = useState(true);
+  // State for processed History
+  const [reducedHistory, setReducedHistory] = useState<{ role: string; text: string }[]>([]);
+  // State for Solved tab's difficulty section
+  const [solvedDifficultyTab, setSolvedDifficultyTab] = useState('Easy');
 
   // Reset states for "↻"
   const resetStates = () => {
@@ -54,9 +56,9 @@ const App = () => {
   const togglePanel = () => setIsPanelOpen(prev => !prev)
 
   const getProblemKey = (url: string) => {
-      const match = url.match(/https:\/\/leetcode\.com\/problems\/([^\/]+)\/?/)
-      return match ? match[1] : null
-  }
+      const match = url.match(/https:\/\/leetcode\.com\/problems\/([^\/]+)\/?/);
+      return match ? match[1] : null;
+  };
 
   const saveState = (problemKey: string) => {
     const state = {
@@ -70,28 +72,30 @@ const App = () => {
       aiFeedback,
       timeComplexity,
       optimizedScore,
-      reducedHistory 
+      reducedHistory,
+      solvedDifficultyTab // Include in saved state 
     }
     chrome.storage.local.set({ [problemKey]: state }, () => {
-      console.log('State saved for problem:', problemKey)
+      console.log('State saved for problem:', problemKey);
     })
   }
 
   const loadState = (problemKey: string) => {
     chrome.storage.local.get(problemKey, (result) => {
-      const storedState = result[problemKey]
+      const storedState = result[problemKey];
       if (storedState) {
-        setActiveHint(storedState.activeHint)
-        setHintMessages(storedState.hintMessages)
-        setUnlockedHints(new Set(storedState.unlockedHints))
-        setTotalAssistance(storedState.totalAssistance)
-        setIsExpanded(storedState.isExpanded)
-        setIsDebugDisabled(storedState.isDebugDisabled)
-        setThoughts(storedState.thoughts)
-        setAiFeedback(storedState.aiFeedback)
-        setTimeComplexity(storedState.timeComplexity)
-        setOptimizedScore(storedState.optimizedScore)
-        setReducedHistory(storedState.reducedHistory || [])
+        setActiveHint(storedState.activeHint);
+        setHintMessages(storedState.hintMessages);
+        setUnlockedHints(new Set(storedState.unlockedHints));
+        setTotalAssistance(storedState.totalAssistance);
+        setIsExpanded(storedState.isExpanded);
+        setIsDebugDisabled(storedState.isDebugDisabled);
+        setThoughts(storedState.thoughts);
+        setAiFeedback(storedState.aiFeedback);
+        setTimeComplexity(storedState.timeComplexity);
+        setOptimizedScore(storedState.optimizedScore);
+        setReducedHistory(storedState.reducedHistory || []);
+        setSolvedDifficultyTab(storedState.solvedDifficultyTab || 'Easy');
         console.log('Loaded reducedHistory:', JSON.stringify(
           (storedState.reducedHistory || []).map((msg: { role: string; text: string }) => ({
             role: msg.role === 'bot' ? 'assistant' : msg.role,
@@ -99,11 +103,11 @@ const App = () => {
           })),
           null,
           2
-        ))
-        console.log('State loaded for problem:', problemKey)
+        ));
+        console.log('State loaded for problem:', problemKey);
       }
-    })
-  }
+    });
+  };
 
   useEffect(() => {
     const checkUrl = () => {
@@ -134,7 +138,7 @@ const App = () => {
     if (currentProblemKey) {
       saveState(currentProblemKey)
     }
-  }, [activeHint, hintMessages, unlockedHints, totalAssistance, isExpanded, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory])
+  }, [activeHint, hintMessages, unlockedHints, totalAssistance, isExpanded, isDebugDisabled, thoughts, aiFeedback, timeComplexity, optimizedScore, reducedHistory, solvedDifficultyTab]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -273,6 +277,8 @@ const App = () => {
           setDebugPatch={setDebugPatch}
           isDebugDisabled={isDebugDisabled}
           setReducedHistory={setReducedHistory}
+          solvedDifficultyTab={solvedDifficultyTab}
+          setSolvedDifficultyTab={setSolvedDifficultyTab} 
         />
       )}
     </>

@@ -1,7 +1,7 @@
 import WLCPLogo from '@/assets/LCP-W.png';
 import ExpandIcon from '@/assets/expand.png';
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Unlock, BookOpen, CheckCircle2, Star, Copy, Check } from 'lucide-react';
+import { Lock, Unlock, BookOpen, CheckCircle2, Star} from 'lucide-react';
 import { fetchProblemContent, fetchProblemTitle } from '@/utils/problemfetch';
 import { fetchHintFromGroq } from '@/utils/fetchhint';
 import { fetchConversation } from '@/utils/fetchconversation';
@@ -11,6 +11,7 @@ import { handleDebug, parsePatchResponse} from '@/utils/debugger';
 import ExpandedHintModal from './ExpandedHintChat';
 import FixSuggestionCard from './FixSuggestionCard';
 import ErrorDisplay from './ErrorDisplay';
+import SolvedSection from './SolvedSection';
 
 const hintData = [
   { percent: 10, text: 'This is an O(n^2) approach hint and weighs 10% of the problem. Do you want to use it?' },
@@ -69,7 +70,9 @@ const Panel = ({
   debugPatch,
   setDebugPatch,
   isDebugDisabled,
-  setReducedHistory
+  setReducedHistory,
+  solvedDifficultyTab,
+  setSolvedDifficultyTab 
 }) => {
   const [inputHeight, setInputHeight] = useState(36); // default height
   const [userInput, setUserInput] = useState('')
@@ -557,385 +560,393 @@ const Panel = ({
         </div>
       </div>
 
-      <p className="text-base font-medium text-left flex-shrink-0">
-        {problemTitle} – <span className={cn("font-semibold", getDifficultyColor(difficulty))}>{difficulty}</span>
-        <div className="border border-gray-300 rounded-md p-3 mt-2 shadow-sm bg-white relative">
-          <div className="flex justify-between items-center mb-2 text-sm font-medium">
-            <div className="flex space-x-2">
-              <button onClick={handleDelete} className="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 transition">DELETE</button>
-              <button onClick={handleEvaluate} className="px-2 py-1 bg-blue-100 text-blue-500 rounded hover:bg-blue-200 transition">EVALUATE</button>
-            </div>
-            <div className="text-gray-600">
-              Time Complexity: <span className="font-semibold">{timeComplexity}</span>   Ideal: <span className="font-semibold">{optimizedScore}/10</span>
-            </div>
-          </div>
-          <div className="max-h-[90px] overflow-y-auto">
-            <textarea
-              placeholder="Tell me your thought of approaching?...."
-              className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
-              value={thoughts}
-              onChange={(e) => setThoughts(e.target.value)}
-            />
-            {aiFeedback && <div className="text-gray-500 text-sm mt-1">{aiFeedback}</div>}
-            {debugResponse && <div className="text-gray-500 text-sm mt-1">{debugResponse}</div>}
-          </div>
-        </div>
-      </p>
-
-      <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-center flex-shrink-0">
-        <button onClick={scrollLeft} disabled={languageIndex === 0} className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30">◀</button>
-        <div className="flex w-full justify-center">
-          {languages.map((lang, i) => (
-            <button key={lang} onClick={() => setLanguageIndex(i)} className={cn("text-base px-6 py-2 rounded-full font-medium transition-all duration-200", i === languageIndex ? "bg-white text-orange-500 shadow-md" : "text-gray-500 hover:text-orange-400")}>{lang}</button>
-          ))}
-        </div>
-        <button onClick={scrollRight} disabled={languageIndex === languages.length - 1} className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30">▶</button>
-      </div>
-
-      <div className="flex flex-1 gap-4 overflow-hidden">
-        <div className="flex flex-col w-[70px] h-full gap-1.5 flex-shrink-0">
-          {hintData.map(({ percent }) => (
-            <button key={percent} 
-              onClick={() => setActiveHint(percent)} 
-              className={cn(
-                "flex flex-col items-center justify-center flex-1 px-2 transition-all duration-200",
-                "hover:bg-gray-50 border", 
-                activeHint === percent 
-                  ? "border-orange-400/80 bg-white text-orange-500 shadow-sm rounded-lg" 
-                  : "border-gray-100 text-gray-500 shadow-sm rounded-lg"
-              )}
-            > 
-              {unlockedHints.has(percent >= 30 ? `${percent}-${currentLanguage}` : `${percent}`) ? (
-                <Unlock size={18} className="mb-1.5 text-green-500" />
-              ) : (
-                <Lock size={18} className="mb-1.5 text-red-300" />
-              )}
-              <span className="text-sm font-medium">{percent}%</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col flex-1 rounded-xl bg-white px-5 pt-5 pb-3 shadow-md border border-gray-200/30 relative">
-          <div className="flex-1 flex flex-col overflow-hidden min-h-[200px] max-h-[450px]">
-            {isHintUnlocked ? (
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <div
-                  className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0"
-                  style={{ paddingBottom: `${48 + (inputHeight - 36)}px` }} //When input height updates, textarea height adjusts accordingly to make last message fully viewanble
-                >
-                  {(hintMessages[hintKey] || []).map((msg, idx) => (
-                    <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
-                      {msg.role === 'assistant' ? (
-                        <>
-                          <div className="h-6 w-6 flex items-center justify-center text-lg mt-1">🤓</div>
-                          <div className="relative bg-orange-100 rounded-lg px-4 py-3 text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap speech-bubble">
-                            {parseSimpleMarkdown(msg.text)}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-zinc-900 max-w-[70%] break-words whitespace-pre-wrap break-all">
-                          {msg.text}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <div ref={chatEndRef} />
+      {tab === 'Solved' ? (
+        <SolvedSection
+          solvedDifficultyTab={solvedDifficultyTab}
+          setSolvedDifficultyTab={setSolvedDifficultyTab}
+        />
+      ) : (
+        <>
+          <p className="text-base font-medium text-left flex-shrink-0">
+            {problemTitle} – <span className={cn("font-semibold", getDifficultyColor(difficulty))}>{difficulty}</span>
+            <div className="border border-gray-300 rounded-md p-3 mt-2 shadow-sm bg-white relative">
+              <div className="flex justify-between items-center mb-2 text-sm font-medium">
+                <div className="flex space-x-2">
+                  <button onClick={handleDelete} className="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 transition">DELETE</button>
+                  <button onClick={handleEvaluate} className="px-2 py-1 bg-blue-100 text-blue-500 rounded hover:bg-blue-200 transition">EVALUATE</button>
                 </div>
+                <div className="text-gray-600">
+                  Time Complexity: <span className="font-semibold">{timeComplexity}</span>   Ideal: <span className="font-semibold">{optimizedScore}/10</span>
+                </div>
+              </div>
+              <div className="max-h-[90px] overflow-y-auto">
+                <textarea
+                  placeholder="Tell me your thought of approaching?...."
+                  className="w-full border border-gray-200 rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]"
+                  value={thoughts}
+                  onChange={(e) => setThoughts(e.target.value)}
+                />
+                {aiFeedback && <div className="text-gray-500 text-sm mt-1">{aiFeedback}</div>}
+                {debugResponse && <div className="text-gray-500 text-sm mt-1">{debugResponse}</div>}
+              </div>
+            </div>
+          </p>
 
-                <div className="absolute bottom-16 left-5 right-5"> {/* Positioned absolutely just above the horizontal line */}
-                  <div className="relative flex items-center w-[100%] mx-auto">
-                    <div className="flex flex-row-reverse w-full">
-                      <textarea
-                        className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
-                        rows={1}
-                        value={userInput}
-                        placeholder="Don't be shy and ask me..."
-                        onChange={(e) => setUserInput(e.target.value)}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          const newHeight = Math.min(target.scrollHeight, 100);
-                          target.style.height = `${newHeight}px`;
-                          target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
-                          setInputHeight(newHeight); // update state
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
+          <div className="rounded-full bg-gray-100 px-2 py-1 shadow-inner border border-gray-200 flex items-center justify-center flex-shrink-0">
+            <button onClick={scrollLeft} disabled={languageIndex === 0} className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30">◀</button>
+            <div className="flex w-full justify-center">
+              {languages.map((lang, i) => (
+                <button key={lang} onClick={() => setLanguageIndex(i)} className={cn("text-base px-6 py-2 rounded-full font-medium transition-all duration-200", i === languageIndex ? "bg-white text-orange-500 shadow-md" : "text-gray-500 hover:text-orange-400")}>{lang}</button>
+              ))}
+            </div>
+            <button onClick={scrollRight} disabled={languageIndex === languages.length - 1} className="p-1.5 rounded-full hover:bg-gray-200 transition disabled:opacity-30">▶</button>
+          </div>
+
+          <div className="flex flex-1 gap-4 overflow-hidden">
+            <div className="flex flex-col w-[70px] h-full gap-1.5 flex-shrink-0">
+              {hintData.map(({ percent }) => (
+                <button key={percent} 
+                  onClick={() => setActiveHint(percent)} 
+                  className={cn(
+                    "flex flex-col items-center justify-center flex-1 px-2 transition-all duration-200",
+                    "hover:bg-gray-50 border", 
+                    activeHint === percent 
+                      ? "border-orange-400/80 bg-white text-orange-500 shadow-sm rounded-lg" 
+                      : "border-gray-100 text-gray-500 shadow-sm rounded-lg"
+                  )}
+                > 
+                  {unlockedHints.has(percent >= 30 ? `${percent}-${currentLanguage}` : `${percent}`) ? (
+                    <Unlock size={18} className="mb-1.5 text-green-500" />
+                  ) : (
+                    <Lock size={18} className="mb-1.5 text-red-300" />
+                  )}
+                  <span className="text-sm font-medium">{percent}%</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col flex-1 rounded-xl bg-white px-5 pt-5 pb-3 shadow-md border border-gray-200/30 relative">
+              <div className="flex-1 flex flex-col overflow-hidden min-h-[200px] max-h-[450px]">
+                {isHintUnlocked ? (
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <div
+                      className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0"
+                      style={{ paddingBottom: `${48 + (inputHeight - 36)}px` }} //When input height updates, textarea height adjusts accordingly to make last message fully viewanble
+                    >
+                      {(hintMessages[hintKey] || []).map((msg, idx) => (
+                        <div key={idx} className={msg.role === 'assistant' ? 'flex items-start gap-2' : 'flex justify-end'}>
+                          {msg.role === 'assistant' ? (
+                            <>
+                              <div className="h-6 w-6 flex items-center justify-center text-lg mt-1">🤓</div>
+                              <div className="relative bg-orange-100 rounded-lg px-4 py-3 text-sm text-gray-700 max-w-[90%] break-words whitespace-pre-wrap speech-bubble">
+                                {parseSimpleMarkdown(msg.text)}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-zinc-900 max-w-[70%] break-words whitespace-pre-wrap break-all">
+                              {msg.text}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    <div className="absolute bottom-16 left-5 right-5"> {/* Positioned absolutely just above the horizontal line */}
+                      <div className="relative flex items-center w-[100%] mx-auto">
+                        <div className="flex flex-row-reverse w-full">
+                          <textarea
+                            className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
+                            rows={1}
+                            value={userInput}
+                            placeholder="Don't be shy and ask me..."
+                            onChange={(e) => setUserInput(e.target.value)}
+                            onInput={(e) => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = 'auto';
+                              const newHeight = Math.min(target.scrollHeight, 100);
+                              target.style.height = `${newHeight}px`;
+                              target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
+                              setInputHeight(newHeight); // update state
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                                setUserInput("");
+                                const target = e.target as HTMLTextAreaElement;
+                                target.style.height = 'auto';
+                                target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
+                                target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
+                              }
+                            }}
+                            style={{ direction: 'ltr', overflowY: 'hidden' }}
+                          />
+                        </div>
+                        
+                        <button
+                          title="Expand"
+                          onClick={() => setIsExpanded(true)}
+                          className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:opacity-80 transition"
+                        >
+                          <img
+                            src={ExpandIcon}
+                            alt="Expand"
+                            className="w-5 h-5 object-contain"
+                          />
+                        </button>
+
+                        <button
+                          onClick={() => {
                             handleSendMessage();
                             setUserInput("");
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = 'auto';
-                            target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
-                            target.style.overflowY = target.scrollHeight > 100 ? 'auto' : 'hidden';
-                          }
-                        }}
-                        style={{ direction: 'ltr', overflowY: 'hidden' }}
-                      />
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs shadow"
+                        >↑</button>
+                      </div>
                     </div>
-                    
-                    <button
-                      title="Expand"
-                      onClick={() => setIsExpanded(true)}
-                      className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:opacity-80 transition"
-                    >
-                      <img
-                        src={ExpandIcon}
-                        alt="Expand"
-                        className="w-5 h-5 object-contain"
-                      />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        handleSendMessage();
-                        setUserInput("");
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs shadow"
-                    >↑</button>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center flex-1 text-center">
-                <p className="text-lg text-zinc-700 leading-relaxed mb-4 text-center">
-                  {hintData.find(h => h.percent === activeHint)?.text || ''}<br />
-                  <span className="text-sm text-gray-400">
-                    Language: {activeHint <= 20 ? 'Python, C++, Java' : currentLanguage}
-                  </span>
-                </p>
-                <button
-                  onClick={() => handleUnlockHint(activeHint, currentLanguage)}
-                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg shadow-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                >
-                  UNLOCK
-                </button>
-              </div>
-            )}
-            {isUnlocking && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
-                <div className="relative w-12 h-12">
-                  <div className="custom-spinner w-full h-full border-6 border-t-orange-500 border-gray-200 rounded-full animate-spin"></div>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200 flex-shrink-0">
-            <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleDebug(problemContent, setDebugResponse)}
-                disabled={isDebugDisabled}
-                className={cn(
-                  "px-6 py-2 rounded-lg bg-orange-200 hover:bg-orange-300 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
-                  !isDebugDisabled && "flashing-red-border", // Flashing red border when enabled
-                  isDebugDisabled && "opacity-50 cursor-not-allowed"
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 text-center">
+                    <p className="text-lg text-zinc-700 leading-relaxed mb-4 text-center">
+                      {hintData.find(h => h.percent === activeHint)?.text || ''}<br />
+                      <span className="text-sm text-gray-400">
+                        Language: {activeHint <= 20 ? 'Python, C++, Java' : currentLanguage}
+                      </span>
+                    </p>
+                    <button
+                      onClick={() => handleUnlockHint(activeHint, currentLanguage)}
+                      className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg shadow-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    >
+                      UNLOCK
+                    </button>
+                  </div>
                 )}
+                {isUnlocking && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                    <div className="relative w-12 h-12">
+                      <div className="custom-spinner w-full h-full border-6 border-t-orange-500 border-gray-200 rounded-full animate-spin"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-200 flex-shrink-0">
+                <span className="text-sm text-gray-500 font-medium">Assistance used: {totalAssistance}%</span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDebug(problemContent, setDebugResponse)}
+                    disabled={isDebugDisabled}
+                    className={cn(
+                      "px-6 py-2 rounded-lg bg-orange-200 hover:bg-orange-300 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow",
+                      !isDebugDisabled && "flashing-red-border", // Flashing red border when enabled
+                      isDebugDisabled && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    DEBUG
+                  </button>
+                  <button className="px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow">SAVE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {debugPatch && (
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: `${cardHeight}px`,
+                  transition: 'height 0s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                }}
+                className="bg-white border border-b-0 rounded-t-md shadow-lg z-[1000] overflow-hidden"
               >
-                DEBUG
-              </button>
-              <button className="px-6 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-zinc-700 transition-colors duration-200 text-sm border border-gray-200 shadow-sm hover:shadow">SAVE</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {debugPatch && (
-        <>
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: `${cardHeight}px`,
-              transition: 'height 0s cubic-bezier(0.25, 0.1, 0.25, 1)',
-            }}
-            className="bg-white border border-b-0 rounded-t-md shadow-lg z-[1000] overflow-hidden"
-          >
-            <div ref={fixCardRef} className="h-full overflow-y-auto p-3 space-y-2" style={{ minHeight: 0 }}>
-              <FixSuggestionCard
-                original={debugPatch.original}
-                modified={debugPatch.modified}
-                explanation={debugPatch.explanation}
-                onAccept={async () => {
-                  try {
-                    const modifiedCode = debugPatch?.modified?.trim();
-                    if (!modifiedCode) {
-                      console.log('No debug patch available.');
-                      alert("No debug patch available.");
-                      return;
-                    }
-
-                    if (!isSubmissionsPage && !isLeetCodeProblemPage) {
-                      throw new Error("Code injection can only be performed on a LeetCode problem or submissions page.");
-                    }
-       
-                    // Function to find the Monaco Editor instance
-                    const findMonacoEditor = async () => {
-                      return new Promise<any>((resolve, reject) => {
-                        let observer: MutationObserver | null = null;
-
-                        const editorContainer = document.querySelector('#editor') ||
-                                                document.querySelector('.monaco-scrollable-element.editor-scrollable.vs-dark');
-                        if (editorContainer) {
-                          console.log('Editor container found:', editorContainer);
-                          const textarea = editorContainer.querySelector('.inputarea') ||
-                                            editorContainer.querySelector('textarea');
-                          if (textarea) {
-                            console.log('Found textarea:', textarea);
-                            if (observer) observer.disconnect();
-                            resolve({ type: 'textarea', value: textarea });
-                            return;
-                          }
-                        };
-                      });
-                    };
-                
-                    // Attempt to find the editor
-                    const result = await findMonacoEditor();
-              
-                    if (result.type === 'textarea') {
-                      const textarea = result.value;
-                      console.log('Textarea found, initial value:', textarea.value);
-                      textarea.focus();
-                      injectScriptBySrc('js/monaco-select-all.js');
-                      await new Promise(resolve => setTimeout(resolve, 500));
-
-                      const clipboardData = new DataTransfer();
-                      clipboardData.setData('text/plain', modifiedCode);
-                      const pasteEvent = new ClipboardEvent('paste', {
-                        clipboardData: clipboardData,
-                        bubbles: true,
-                        cancelable: true
-                      });
-
-                      textarea.value = modifiedCode;
-
-                      textarea.dispatchEvent(pasteEvent);
-                      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                      textarea.dispatchEvent(new Event('change', { bubbles: true }));
-                      textarea.dispatchEvent(new Event('focus', { bubbles: true }));
-                      console.log('Textarea after injection:', textarea.value);
-              
-                      // Add a delay to allow rendering
-                      await new Promise(resolve => setTimeout(resolve, 300));
-              
-                      // Verify the final state
-                      console.log('Textarea final value:', textarea.value);
-              
-                      // Check the editor view
-                      const viewLines = document.querySelector('.view-lines');
-                      if (viewLines) {
-                        console.log('View lines content:', viewLines.textContent);
-                        if (viewLines.textContent !== modifiedCode) {
-                          console.warn('Editor view does not match textarea value:', viewLines.textContent);
+                <div ref={fixCardRef} className="h-full overflow-y-auto p-3 space-y-2" style={{ minHeight: 0 }}>
+                  <FixSuggestionCard
+                    original={debugPatch.original}
+                    modified={debugPatch.modified}
+                    explanation={debugPatch.explanation}
+                    onAccept={async () => {
+                      try {
+                        const modifiedCode = debugPatch?.modified?.trim();
+                        if (!modifiedCode) {
+                          console.log('No debug patch available.');
+                          alert("No debug patch available.");
+                          return;
                         }
-                      } else {
-                        console.warn('View lines not found.');
+
+                        if (!isSubmissionsPage && !isLeetCodeProblemPage) {
+                          throw new Error("Code injection can only be performed on a LeetCode problem or submissions page.");
+                        }
+          
+                        // Function to find the Monaco Editor instance
+                        const findMonacoEditor = async () => {
+                          return new Promise<any>((resolve, reject) => {
+                            let observer: MutationObserver | null = null;
+
+                            const editorContainer = document.querySelector('#editor') ||
+                                                    document.querySelector('.monaco-scrollable-element.editor-scrollable.vs-dark');
+                            if (editorContainer) {
+                              console.log('Editor container found:', editorContainer);
+                              const textarea = editorContainer.querySelector('.inputarea') ||
+                                                editorContainer.querySelector('textarea');
+                              if (textarea) {
+                                console.log('Found textarea:', textarea);
+                                if (observer) observer.disconnect();
+                                resolve({ type: 'textarea', value: textarea });
+                                return;
+                              }
+                            };
+                          });
+                        };
+                    
+                        // Attempt to find the editor
+                        const result = await findMonacoEditor();
+                  
+                        if (result.type === 'textarea') {
+                          const textarea = result.value;
+                          console.log('Textarea found, initial value:', textarea.value);
+                          textarea.focus();
+                          injectScriptBySrc('js/monaco-select-all.js');
+                          await new Promise(resolve => setTimeout(resolve, 500));
+
+                          const clipboardData = new DataTransfer();
+                          clipboardData.setData('text/plain', modifiedCode);
+                          const pasteEvent = new ClipboardEvent('paste', {
+                            clipboardData: clipboardData,
+                            bubbles: true,
+                            cancelable: true
+                          });
+
+                          textarea.value = modifiedCode;
+
+                          textarea.dispatchEvent(pasteEvent);
+                          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                          textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                          textarea.dispatchEvent(new Event('focus', { bubbles: true }));
+                          console.log('Textarea after injection:', textarea.value);
+                  
+                          // Add a delay to allow rendering
+                          await new Promise(resolve => setTimeout(resolve, 300));
+                  
+                          // Verify the final state
+                          console.log('Textarea final value:', textarea.value);
+                  
+                          // Check the editor view
+                          const viewLines = document.querySelector('.view-lines');
+                          if (viewLines) {
+                            console.log('View lines content:', viewLines.textContent);
+                            if (viewLines.textContent !== modifiedCode) {
+                              console.warn('Editor view does not match textarea value:', viewLines.textContent);
+                            }
+                          } else {
+                            console.warn('View lines not found.');
+                          }
+                        } else {
+                          throw new Error("Unknown result type or editor not found");
+                        }
+                    
+                        // Reset debug state
+                        setDebugPatch(null);
+                        setDebugResponse(null);
+                        setCardHeight(0);
+                      } catch (error) {
+                        console.error('Failed to inject debug patch:', error);
+                        alert(`Failed to inject code: ${(error as Error).message}. Please try again or check the console for more details.`);
                       }
-                    } else {
-                      throw new Error("Unknown result type or editor not found");
-                    }
-                
-                    // Reset debug state
-                    setDebugPatch(null);
-                    setDebugResponse(null);
-                    setCardHeight(0);
-                  } catch (error) {
-                    console.error('Failed to inject debug patch:', error);
-                    alert(`Failed to inject code: ${(error as Error).message}. Please try again or check the console for more details.`);
-                  }
+                    }}
+                    onAgain={async () => {
+                      await handleDebug(problemContent, setDebugResponse);
+                    }}
+                    onDiscard={() => {
+                      // Reset debug state and collapse the card
+                      setDebugPatch(null);
+                      setDebugResponse(null);
+                      setCardHeight(0);
+                    }}
+                  />
+                </div>
+              </div>
+              <div
+                onMouseDown={handleMouseDown}
+                style={{
+                  position: 'absolute',
+                  bottom: `${cardHeight}px`,
+                  left: 0,
+                  right: 0,
+                  height: '15px',
+                  transition: 'bottom 0s cubic-bezier(0.25, 0.1, 0.25, 1)',
                 }}
-                onAgain={async () => {
-                  await handleDebug(problemContent, setDebugResponse);
-                }}
-                onDiscard={() => {
-                  // Reset debug state and collapse the card
-                  setDebugPatch(null);
-                  setDebugResponse(null);
-                  setCardHeight(0);
-                }}
-              />
-            </div>
-          </div>
-          <div
-            onMouseDown={handleMouseDown}
-            style={{
-              position: 'absolute',
-              bottom: `${cardHeight}px`,
-              left: 0,
-              right: 0,
-              height: '15px',
-              transition: 'bottom 0s cubic-bezier(0.25, 0.1, 0.25, 1)',
-            }}
-            className="bg-gray-300 cursor-ns-resize flex items-center justify-center z-[1001]"
-          >
-            <div className="w-6 h-1 bg-gray-400 rounded-full"></div>
-          </div>
+                className="bg-gray-300 cursor-ns-resize flex items-center justify-center z-[1001]"
+              >
+                <div className="w-6 h-1 bg-gray-400 rounded-full"></div>
+              </div>
+            </>
+          )}
+          {debugResponse !== null && parsed === null && <ErrorDisplay isVisible={isErrorVisible} onDismiss={() => setIsErrorVisible(false)} setDebugResponse={setDebugResponse} setParsed={setParsed} debugResponse={debugResponse} parsed={parsed} />}
+          {isExpanded && (
+            <ExpandedHintModal
+              onClose={() => setIsExpanded(false)}
+              hintMessages={hintMessages}
+              activeHint={activeHint}
+              setActiveHint={setActiveHint}
+              unlockedHints={unlockedHints}
+              handleUnlockHint={(percent) => handleUnlockHint(percent, currentLanguage)}
+              userInput={userInput}
+              setUserInput={setUserInput}
+              handleSendMessage={handleSendMessage}
+              currentLanguage={currentLanguage}
+              setLanguageIndex={setLanguageIndex} // Pass setLanguageIndex to ExpandedHintModal
+            />
+          )}
+
+          {/* Inline CSS for flashing red border, loading spinner and speech bubble */}
+          <style>
+            {`
+              .flashing-red-border {
+                border: 2px solid red;
+                animation: flash 2s infinite;
+                box-shadow: 0 0 10px red; 
+              }
+              
+              @keyframes flash {
+                0% { border-color: red; box-shadow: 0 0 10px red; }
+                50% { border-color: transparent; box-shadow: 0 0 0 transparent; }
+                100% { border-color: red; box-shadow: 0 0 10px red; }
+              }
+              
+              .custom-spinner {
+                border-top-color: #f97316; /* Orange-500 */
+                animation: spin 1s linear infinite;
+              }
+
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+
+              .speech-bubble {
+                position: relative;
+              }
+
+              .speech-bubble::before {
+                content: '';
+                position: absolute;
+                left: -8px;
+                top: 12px;
+                width: 0;
+                height: 0;
+                border-top: 8px solid transparent;
+                border-bottom: 8px solid transparent;
+                border-right: 8px solid #ffedd5; /* Matches bg-orange-100 */
+              }
+            `}
+          </style>
         </>
       )}
-      {debugResponse !== null && parsed === null && <ErrorDisplay isVisible={isErrorVisible} onDismiss={() => setIsErrorVisible(false)} setDebugResponse={setDebugResponse} setParsed={setParsed} debugResponse={debugResponse} parsed={parsed} />}
-      {isExpanded && (
-        <ExpandedHintModal
-          onClose={() => setIsExpanded(false)}
-          hintMessages={hintMessages}
-          activeHint={activeHint}
-          setActiveHint={setActiveHint}
-          unlockedHints={unlockedHints}
-          handleUnlockHint={(percent) => handleUnlockHint(percent, currentLanguage)}
-          userInput={userInput}
-          setUserInput={setUserInput}
-          handleSendMessage={handleSendMessage}
-          currentLanguage={currentLanguage}
-          setLanguageIndex={setLanguageIndex} // Pass setLanguageIndex to ExpandedHintModal
-        />
-      )}
-
-      {/* Inline CSS for flashing red border, loading spinner and speech bubble */}
-      <style>
-        {`
-          .flashing-red-border {
-            border: 2px solid red;
-            animation: flash 2s infinite;
-            box-shadow: 0 0 10px red; 
-          }
-          
-          @keyframes flash {
-            0% { border-color: red; box-shadow: 0 0 10px red; }
-            50% { border-color: transparent; box-shadow: 0 0 0 transparent; }
-            100% { border-color: red; box-shadow: 0 0 10px red; }
-          }
-           
-          .custom-spinner {
-            border-top-color: #f97316; /* Orange-500 */
-            animation: spin 1s linear infinite;
-          }
-
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-
-          .speech-bubble {
-            position: relative;
-          }
-
-          .speech-bubble::before {
-            content: '';
-            position: absolute;
-            left: -8px;
-            top: 12px;
-            width: 0;
-            height: 0;
-            border-top: 8px solid transparent;
-            border-bottom: 8px solid transparent;
-            border-right: 8px solid #ffedd5; /* Matches bg-orange-100 */
-          }
-        `}
-      </style>
-
     </div>
   );
 };
