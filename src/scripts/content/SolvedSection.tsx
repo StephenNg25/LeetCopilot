@@ -1,6 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { cn } from '@/utils/browser';
 import { CheckCircle2, Clock, FileText } from 'lucide-react';
+
+class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: string | null }> {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>Error: {this.state.error || 'Something went wrong. Please refresh.'}</div>;
+    }
+    return this.props.children;
+  }
+}
 
 interface SolvedSectionProps {
   solvedDifficultyTab: string;
@@ -8,142 +27,176 @@ interface SolvedSectionProps {
 }
 
 const SolvedSection: React.FC<SolvedSectionProps> = ({ solvedDifficultyTab, setSolvedDifficultyTab }) => {
-  // Function to determine the color based on percentage in 10% steps
-  const getProgressColor = (percent: number) => {
-    const colorMap = [
-        '#00c853', // 0%   - Vivid Green
-        '#32d06c', // 10%  - Light Green
-        '#64d87f', // 20%  - Lime Green
-        '#96e091', // 30%  - Yellow-Green
-        '#c8e8a4', // 40%  - Faint Lime
-        '#ffff00', // 50%  - Yellow (neutral)
-        '#ffc107', // 60%  - Yellow-Orange
-        '#ff9800', // 70%  - Orange
-        '#ff5722', // 80%  - Deep Orange
-        '#f44336', // 90%  - Light Red
-        '#d32f2f'  // 100% - Strong Red (bad)
-    ];
-    const index = Math.min(Math.floor(percent / 10), 10); // Ensure index stays within bounds
-    return colorMap[index];
-  };
-
-  const problem1Percent = 10; // Hardcoded percentage for Problem 1
-  const problem2Percent = 20; // Hardcoded percentage for Problem 2
+    const [problems, setProblems] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
   
+    const getProgressColor = (percent: number) => {
+      const colorMap = [
+        '#00c853', '#32d06c', '#64d87f', '#96e091', '#c8e8a4',
+        '#ffff00', '#ffc107', '#ff9800', '#ff5722', '#f44336', '#d32f2f'
+      ];
+      const index = Math.min(Math.floor(percent / 10), 10);
+      return colorMap[index];
+    };
+  
+    const getHelpScore = () => 0; // Placeholder
+  
+    const fetchProblems = () => {
+      setLoading(true);
+      setError(null);
+      chrome.runtime.sendMessage({ type: 'FETCH_PROBLEMS' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Message sending failed:', chrome.runtime.lastError);
+          setError('Failed to communicate with service worker.');
+          setProblems([]);
+        } else if (response instanceof Error) {
+          console.error('Fetch failed:', response);
+          setError('Failed to load problems. Please ensure you are logged into LeetCode.');
+          setProblems([]);
+        } else {
+          console.log('Received problems:', response);
+          setProblems(response);
+          saveState(response); // Save fetched problems
+        }
+        setLoading(false);
+      });
+    };
+  
+    const saveState = (problemsData: any[]) => {
+      const state = { problems: problemsData, solvedDifficultyTab };
+      chrome.storage.local.set({ solvedProblemsState: state }, () => {
+        console.log('Solved problems state saved');
+      });
+    };
+  
+    const loadState = () => {
+      chrome.storage.local.get('solvedProblemsState', (result) => {
+        const storedState = result.solvedProblemsState;
+        if (storedState) {
+          setProblems(storedState.problems || []);
+          setSolvedDifficultyTab(storedState.solvedDifficultyTab || 'Easy');
+          console.log('Loaded solved problems state:', storedState);
+        } else {
+          fetchProblems(); // Initial fetch if no state exists
+        }
+      });
+    };
+  
+    useEffect(() => {
+      loadState();
+      // Listen for REFRESH_PROBLEMS message from content script
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'REFRESH_PROBLEMS') {
+          fetchProblems();
+          sendResponse({ success: true });
+        }
+        return true;
+      });
+    }, []);
+  
+    useEffect(() => {
+      saveState(problems); // Save state when problems or difficulty tab changes
+    }, [problems, solvedDifficultyTab]);
+  
+    if (loading) return <div>Loading...</div>;
+    if (error) return <div>{error}</div>;
+
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Horizontal Navigation Bar for Difficulty Tabs */}
-      <div className="flex flex-row flex-shrink-0 border-b border-gray-200">
-        {['Easy', 'Medium', 'Hard'].map((difficulty) => (
-          <button
-            key={difficulty}
-            onClick={() => setSolvedDifficultyTab(difficulty)}
-            className={cn(
-              "flex-1 py-2 text-sm font-medium transition-all duration-200",
-              solvedDifficultyTab === difficulty
-                ? "border-t border-l border-r border-b-0 bg-white text-orange-500 shadow-md rounded-t-md"
-                : "bg-gray-50 text-gray-600 hover:bg-white hover:text-orange-400",
-              {
-                'text-green-500': difficulty === 'Easy',
-                'text-yellow-500': difficulty === 'Medium',
-                'text-red-500': difficulty === 'Hard',
-              }
-            )}
-          >
-            {difficulty}
-          </button>
-        ))}
-      </div>
+    <ErrorBoundary>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-row flex-shrink-0 border-b border-gray-200">
+          {['Easy', 'Medium', 'Hard'].map((difficulty) => (
+            <button
+              key={difficulty}
+              onClick={() => setSolvedDifficultyTab(difficulty)}
+              className={cn(
+                "flex-1 py-2 text-sm font-medium transition-all duration-200",
+                solvedDifficultyTab === difficulty
+                  ? "border-t border-l border-r border-b-0 bg-white text-orange-500 shadow-md rounded-t-md"
+                  : "bg-gray-50 text-gray-600 hover:bg-white hover:text-orange-400",
+                {
+                  'text-green-500': difficulty === 'Easy',
+                  'text-yellow-500': difficulty === 'Medium',
+                  'text-red-500': difficulty === 'Hard',
+                }
+              )}
+            >
+              {difficulty}
+            </button>
+          ))}
+        </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 bg-white rounded-b-md border-l border-r border-b border-gray-200 border-t-0 -mt-px">
-        {solvedDifficultyTab === 'Easy' && (
+        <div className="flex-1 overflow-y-auto p-6 bg-white rounded-b-md border-l border-r border-b border-gray-200 border-t-0 -mt-px">
           <div className="grid gap-4">
-            {/* Problem 1: Solved */}
-            <div className="problem-card group">
-              <div className="flex items-center gap-3">
-                <h3 className="problem-title inline-flex items-center gap-2">
-                  1. Two Sum 
-                  <CheckCircle2 className="status-icon text-green-500 w-5 h-5" />
-                </h3>
-                <div className="help-score">
-                  <svg viewBox="0 0 36 36" className="circular-progress">
-                    <path
-                      className="circle-bg"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="#e5e7eb"
-                      strokeWidth="3.5"
-                    />
-                    <path
-                      className="circle"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke={getProgressColor(problem1Percent)}
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeDasharray={`${problem1Percent}, 100`}
-                    />
-                    <text x="18" y="20.35" className="percentage">0%</text>
-                  </svg>
-                  <span className="help-label">Usage Of Help</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-2">
-                  <button className="action-button redo">Redo</button>
-                  <FileText className="icon-button" />
-                  <div className="notes-button">+ Add Notes</div>
-                </div>
-                <span className="meta-text">Last submitted: June 1, 2023</span>
-              </div>
-            </div>
-
-            {/* Problem 2: In Progress */}
-            <div className="problem-card group">
-              <div className="flex items-center gap-3">
-                <h3 className="problem-title inline-flex items-center gap-2">
-                  2. Add Two Numbers
-                  <Clock className="status-icon text-gray-500 w-5 h-5" />
-                </h3>
-                <div className="help-score">
-                  <svg viewBox="0 0 36 36" className="circular-progress">
-                    <path
-                      className="circle-bg"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="#e5e7eb"
-                      strokeWidth="3.5"
-                    />
-                    <path
-                      className="circle"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke={getProgressColor(problem2Percent)}
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeDasharray={`${problem2Percent}, 100`}
-                    />
-                    <text x="18" y="20.35" className="percentage">30%</text>
-                  </svg>
-                  <span className="help-label">Help Score</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-2">
-                  <button className="action-button continue">Continue</button>
-                  <FileText className="icon-button" />
-                  <div className="notes-button">+ Add Notes</div>
-                </div>
-                <span className="meta-text">Last saved: June 2, 2023</span>
-              </div>
-            </div>
+            {problems.length === 0 ? (
+              <div>No problems found for this difficulty.</div>
+            ) : (
+              problems
+                .filter((problem) => problem?.difficulty === solvedDifficultyTab)
+                .map((problem, index) => {
+                  const helpScore = getHelpScore();
+                  return (
+                    <div key={problem.questionId} className="problem-card group">
+                      <div className="flex items-center gap-3">
+                        <h3 className="problem-title inline-flex items-center gap-2">
+                          {`${index + 1}. ${problem.title}`}
+                          {problem.status === "Solved" ? (
+                            <CheckCircle2 className="status-icon text-green-500 w-5 h-5" />
+                          ) : problem.status === "In Progress" ? (
+                            <Clock className="status-icon text-gray-500 w-5 h-5" />
+                          ) : (
+                            <span className="status-icon text-gray-300 w-5 h-5">?</span>
+                          )}
+                        </h3>
+                        <div className="help-score">
+                          <svg viewBox="0 0 36 36" className="circular-progress">
+                            <path
+                              className="circle-bg"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke="#e5e7eb"
+                              strokeWidth="3.5"
+                            />
+                            <path
+                              className="circle"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke={getProgressColor(helpScore)}
+                              strokeWidth="3.5"
+                              strokeLinecap="round"
+                              strokeDasharray={`${helpScore}, 100`}
+                            />
+                            <text x="18" y="20.35" className="percentage">{`${helpScore}%`}</text>
+                          </svg>
+                          <span className="help-label">
+                            {problem.status === "Solved" ? "Usage Of Help" : "Help Score"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <button className={`action-button ${problem.status === "Solved" ? "redo" : "continue"}`}>
+                            {problem.status === "Solved" ? "Redo" : "Continue"}
+                          </button>
+                          <FileText className="icon-button" />
+                          <div className="notes-button">+ Add Notes</div>
+                        </div>
+                        <span className="meta-text">
+                          {problem.timestamp
+                            ? `Last ${problem.status === "Solved" ? "submitted" : "saved"}: ${new Date(problem.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+                            : "No activity yet"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Inline CSS for Premium Styling */}
-      <style>{`
+        </div>
+ 
+        {/* Inline CSS for Premium Styling */}
+        <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@500;700&display=swap');
 
         .problem-card {
@@ -293,7 +346,8 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ solvedDifficultyTab, setS
           0% { stroke-dasharray: 0, 100; }
         }
       `}</style>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 
