@@ -71,8 +71,8 @@ const Panel = ({
   setDebugPatch,
   isDebugDisabled,
   setReducedHistory,
-  solvedDifficultyTab,
-  setSolvedDifficultyTab 
+  solvedDifficultyTab: propSolvedDifficultyTab,
+  setSolvedDifficultyTab: setPropSolvedDifficultyTab 
 }) => {
   const [inputHeight, setInputHeight] = useState(36); // default height
   const [userInput, setUserInput] = useState('')
@@ -88,6 +88,11 @@ const Panel = ({
   const [parsed, setParsed] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false); // New state for tracking unlock loading
+
+  const [problems, setProblems] = useState<any[]>([]); // Lifted state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [solvedDifficultyTab, setSolvedDifficultyTab] = useState(propSolvedDifficultyTab);
 
   const currentLanguage = languages[languageIndex];
   // Create a key for language-specific hints (30, 40, 100)
@@ -121,6 +126,25 @@ const Panel = ({
       }
     };
     getProblemInfo();
+    
+    // Pre-fetch problems when panel opens
+    setLoading(true);
+    setError(null);
+    chrome.runtime.sendMessage({ type: 'FETCH_PROBLEMS' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Message sending failed:', chrome.runtime.lastError);
+        setError('Failed to communicate with service worker.');
+        setProblems([]);
+      } else if (response instanceof Error) {
+        console.error('Fetch failed:', response);
+        setError('Failed to load problems. Please ensure you are logged into LeetCode.');
+        setProblems([]);
+      } else {
+        console.log('Received problems:', response);
+        setProblems(response);
+      }
+      setLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -522,7 +546,39 @@ const Panel = ({
   
     return elements;
   };
+  
+  const saveState = () => {
+    const state = { problems, loading, error, solvedDifficultyTab };
+    chrome.storage.local.set({ panelState: state }, () => {
+      console.log('Panel state saved');
+    });
+  };
 
+  const loadState = () => {
+    chrome.storage.local.get('panelState', (result) => {
+      const storedState = result.panelState;
+      if (storedState) {
+        setProblems(storedState.problems || []);
+        setLoading(storedState.loading || false);
+        setError(storedState.error || null);
+        setSolvedDifficultyTab(storedState.solvedDifficultyTab || 'Easy');
+        console.log('Loaded panel state:', storedState);
+      }
+    });
+  };
+
+  useEffect(() => {
+    loadState();
+  }, []);
+
+  useEffect(() => {
+    saveState();
+  }, [problems, loading, error, solvedDifficultyTab]);
+
+  useEffect(() => {
+    setPropSolvedDifficultyTab(solvedDifficultyTab);
+  }, [solvedDifficultyTab, setPropSolvedDifficultyTab]);
+  
   return (
     <div 
       className="fixed bg-white text-zinc-800 shadow-2xl z-[999999] border border-gray-200 flex flex-col font-sans p-5 gap-5 overflow-y-auto rounded-xl" 
@@ -564,6 +620,9 @@ const Panel = ({
         <SolvedSection
           solvedDifficultyTab={solvedDifficultyTab}
           setSolvedDifficultyTab={setSolvedDifficultyTab}
+          problems={problems} // Pass problems as prop
+          loading={loading}
+          error={error}
         />
       ) : (
         <>

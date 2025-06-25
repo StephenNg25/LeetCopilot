@@ -69,7 +69,7 @@ const createBaseManifest = async (): Promise<Manifest> => {
                 48: './assets/LC_48.png',
                 128: './assets/LC_128.png'
             },
-            permissions: ["storage", "tabs", "scripting"],
+            permissions: ["cookies", "storage", "tabs", "scripting"],
             host_permissions: [
                 "https://leetcode.com/*"
             ],
