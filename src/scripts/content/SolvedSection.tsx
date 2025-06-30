@@ -29,17 +29,9 @@ interface SolvedSectionProps {
   error: string | null;
 }
 
-const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error, solvedDifficultyTab, setSolvedDifficultyTab }) => {
-    const getProgressColor = (percent: number) => {
-        const colorMap = [
-        '#00c853', '#32d06c', '#64d87f', '#96e091', '#c8e8a4',
-        '#ffff00', '#ffc107', '#ff9800', '#ff5722', '#f44336', '#d32f2f'
-        ];
-        const index = Math.min(Math.floor(percent / 10), 10);
-        return colorMap[index];
-    };
+const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error, solvedDifficultyTab, setSolvedDifficultyTab}) => {
 
-    const getHelpScore = () => 0; // Placeholder
+    const getHelpScore = (problem: any) => problem.totalAssistance || 0;
 
     const saveState = () => {
         const state = { solvedDifficultyTab };
@@ -77,6 +69,41 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error,
     if (loading) return <div>Loading...</div>;
     if (error) return <div>{error}</div>;
 
+    const handleRedo = (slug: string, status: string) => {
+        if (status === "Solved") {
+            const confirmed = window.confirm('This action will reset everything used for this problem! Are you sure to continue?');
+            if (confirmed) {
+                // Load the current state for the target problem
+                chrome.storage.local.get(slug, (result) => {
+                    const currentState = result[slug] || {};
+            
+                    // Reset the state for the target problem
+                    const resetState = {
+                    activeHint: 10,
+                    hintMessages: {},
+                    unlockedHints: [],
+                    totalAssistance: 0,
+                    isExpanded: false,
+                    isDebugDisabled: true,
+                    thoughts: '',
+                    aiFeedback: '',
+                    timeComplexity: 'N/A',
+                    optimizedScore: '0',
+                    reducedHistory: [],
+                    };
+            
+                    // Save the reset state back to chrome.storage.local for the target slug
+                    chrome.storage.local.set({ [slug]: resetState }, () => {
+                        console.log(`State reset for problem: ${slug}`);
+                        window.open(`https://leetcode.com/problems/${slug}/`, '_blank'); // Navigate to the problem page
+                    });
+                });
+            }
+        } else {
+            window.open(`https://leetcode.com/problems/${slug}/`, '_blank'); // Navigate to the problem page
+        }
+    };
+
     return (
         <ErrorBoundary>
             <div className="flex flex-col flex-1 overflow-hidden">
@@ -111,67 +138,68 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error,
                             .filter((problem) => problem?.difficulty === solvedDifficultyTab)
                             .sort((a, b) => a.questionId - b.questionId)
                             .map((problem) => {
-                            const helpScore = getHelpScore();
+                            const helpScore = getHelpScore(problem);
                             const slug = getSlugFromTitle(problem.title);
                             return (
-                                <div key={problem.questionId} className="problem-card group">
-                                <div className="flex items-center gap-3">
-                                    <h3 className="problem-title inline-flex items-center gap-2">
-                                    <a
-                                        href={`https://leetcode.com/problems/${slug}/`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="hover:underline hover:decoration-orange-400 truncate max-w-[calc(100%-2rem)]" // Adjust max-width to leave space for icon
-                                    >
-                                        {`${problem.questionId}. ${problem.title}`}
-                                    </a>
-                                    {problem.status === "Solved" ? (
-                                        <CheckCircle2 className="status-icon text-green-500 w-5 h-5" />
-                                    ) : problem.status === "In Progress" ? (
-                                        <Clock className="status-icon text-gray-500 w-5 h-5" />
-                                    ) : (
-                                        <span className="status-icon text-gray-300 w-5 h-5">?</span>
-                                    )}
-                                    </h3>
-                                    <div className="help-score">
-                                    <svg viewBox="0 0 36 36" className="circular-progress">
-                                        <path
-                                        className="circle-bg"
-                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                        fill="none"
-                                        stroke="#e5e7eb"
-                                        strokeWidth="3.5"
-                                        />
-                                        <path
-                                        className="circle"
-                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                        fill="none"
-                                        stroke={getProgressColor(helpScore)}
-                                        strokeWidth="3.5"
-                                        strokeLinecap="round"
-                                        strokeDasharray={`${helpScore}, 100`}
-                                        />
-                                        <text x="18" y="20.35" className="percentage">{`${helpScore}%`}</text>
-                                    </svg>
-                                    <span className="help-label">
-                                        {problem.status === "Solved" ? "Usage Of Help" : "Help Score"}
-                                    </span>
+                                <div key={problem.questionId} className={`problem-card ${problem.status === 'In Progress' ? 'reverse-gradient' : ''} group`}>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className={`problem-title inline-flex items-center gap-2 ${problem.status === 'In Progress' ? 'blue-gradient' : ''}`}>
+                                        <a
+                                            href={`https://leetcode.com/problems/${slug}/`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`hover:underline ${problem.status === 'In Progress' ? 'hover:decoration-blue-400' : 'hover:decoration-orange-400'} truncate max-w-[calc(100%-2rem)]`}
+                                        >
+                                            {`${problem.questionId}. ${problem.title}`}
+                                        </a>
+                                        {problem.status === "Solved" ? (
+                                            <CheckCircle2 className="status-icon text-green-500 w-5 h-5" />
+                                        ) : problem.status === "In Progress" ? (
+                                            <Clock className="status-icon text-gray-500 w-5 h-5" />
+                                        ) : (
+                                            <span className="status-icon text-gray-300 w-5 h-5">?</span>
+                                        )}
+                                        </h3>
+                                        <div className="help-score">
+                                        <svg viewBox="0 0 36.5 35" className="circular-progress">
+                                            <path
+                                            className="circle-bg"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            fill="none"
+                                            stroke="#e5e7eb"
+                                            strokeWidth="3.5"
+                                            />
+                                            <path
+                                            className="circle"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            fill="none"
+                                            stroke="#00c853"
+                                            strokeWidth="3.5"
+                                            strokeLinecap="round"
+                                            strokeDasharray={`${helpScore}, 100`}
+                                            />
+                                            <text x="18.8" y="21.5" className="percentage">{`${helpScore}%`}</text>
+                                        </svg>
+                                        <span className="help-label">Usage Of Help</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                    <div className="flex items-center gap-2">
-                                    <button className={`action-button ${problem.status === "Solved" ? "redo" : "continue"}`}>
-                                        {problem.status === "Solved" ? "Redo" : "Continue"}
-                                    </button>
-                                    <FileText className="icon-button" />
-                                    <div className="notes-button">+ Add Notes</div>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <div className="flex items-center gap-2">
+                                        <button
+                                            className={`action-button ${problem.status === "Solved" ? "redo" : "continue"}`}
+                                            onClick={() => handleRedo(slug, problem.status)}
+                                            >
+                                            {problem.status === "Solved" ? "Redo" : "Continue"}
+                                        </button>
+                                        <FileText className="icon-button" />
+                                        <div className="notes-button">+ Add Notes</div>
+                                        </div>
+                                        <span className="meta-text">
+                                        {problem.timestamp
+                                            ? `Last Submitted: ${new Date(problem.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+                                            : "No activity yet"}
+                                        </span>
                                     </div>
-                                    <span className="meta-text">
-                                    {problem.timestamp
-                                        ? `Last ${problem.status === "Solved" ? "submitted" : "saved"}: ${new Date(problem.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
-                                        : "No activity yet"}
-                                    </span>
-                                </div>
                                 </div>
                             );
                             })
@@ -179,25 +207,39 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error,
                     </div>
                 </div>
 
-                {/* Inline CSS for Premium Styling */}
                 <style>{`
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@500;700&display=swap');
 
                     .problem-card {
                         background: bg-gray-50;
                         border: 1px solid;
-                        border-image: linear-gradient(45deg, #f97316, #3b82f6) 1;
+                        border-image: linear-gradient(45deg, #fdba74, #60a5fa) 1;
                         border-radius: 8px;
                         padding: 12px;
                         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                        transition: all 0.3s ease;
-                        animation: fadeIn 0.5s ease forwards;
+                        animation: fadeIn 2s ease forwards;
+                    }
+
+                    .problem-card.reverse-gradient {
+                        background: bg-gray-50;
+                        border: 1px solid;
+                        border-image: linear-gradient(45deg ,#60a5fa, #fdba74) 1;
+                        border-radius: 8px;
+                        padding: 12px;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        animation: fadeIn 2s ease forwards;
                     }
 
                     .problem-card:hover {
                         transform: translateY(-2px);
-                        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-                        border-image: linear-gradient(45deg, #fdba74, #60a5fa) 1;
+                        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+                        border-image: linear-gradient(45deg, #f97316, #3b82f6) 1;
+                    }
+                    
+                    .problem-card.reverse-gradient:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+                        border-image: linear-gradient(45deg, #3b82f6, #f97316) 1; 
                     }
 
                     .problem-title {
@@ -205,6 +247,19 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error,
                         font-size: 16px;
                         font-weight: 600;
                         background: linear-gradient(90deg, #f97316, #fdba74);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        flex: 1;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    
+                    .problem-title.blue-gradient {
+                        font-family: 'Poppins', sans-serif;
+                        font-size: 16px;
+                        font-weight: 600;
+                        background: linear-gradient(90deg, #3b82f6, #60a5fa); 
                         -webkit-background-clip: text;
                         -webkit-text-fill-color: transparent;
                         flex: 1;
@@ -240,7 +295,7 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error,
                     .percentage {
                         fill: #1f2937;
                         font-family: 'Inter', sans-serif;
-                        font-size: 7px;
+                        font-size: 10px;
                         text-anchor: middle;
                     }
 
@@ -330,7 +385,6 @@ const SolvedSection: React.FC<SolvedSectionProps> = ({ problems, loading, error,
                         0% { stroke-dasharray: 0, 100; }
                     }
 
-                    /* New styles for title truncation */
                     .truncate {
                         overflow: hidden;
                         white-space: nowrap;

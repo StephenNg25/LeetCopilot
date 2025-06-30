@@ -32,8 +32,8 @@ chrome.commands.onCommand.addListener(command => {
     }
 })
 //------------ SolvedSection.tsx------------//
-//Use GraphQL to fetch completed submissions on every open triggered on Panel(constant update) and save to Chrome storage.
-//Avoid using failed fetch and falls back to latest successfully saved submissions from Chrome storage
+// Use GraphQL to fetch completed submissions on every open triggered on Panel (constant update) and save to Chrome storage.
+// Avoid using failed fetch and falls back to latest successfully saved submissions from Chrome storage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'FETCH_PROBLEMS') {
         console.log('Received FETCH_PROBLEMS message');
@@ -88,9 +88,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                     const response = await fetch('https://leetcode.com/graphql', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(query),
                         credentials: 'include',
                     });
@@ -166,6 +164,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         return {
                             questionId: problem.questionId,
                             title: problem.title,
+                            slug: problem.slug,
                             difficulty: { 1: 'Easy', 2: 'Medium', 3: 'Hard' }[problem.difficulty],
                             status: displayStatus,
                             timestamp: timestamp instanceof Date ? timestamp : null,
@@ -175,19 +174,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.log('Final Processed Problems:', processedProblems);
                 console.log('Number of Processed Problems:', processedProblems.length);
 
-                // Save to storage only if fetch is successful
-                chrome.storage.local.set({ problems: processedProblems }, () => {
-                    console.log('Problems saved to storage');
-                    sendResponse(processedProblems);
+                // Retrieve totalAssistance for all problems from Chrome storage
+                const problemSlugs = processedProblems.map((problem) => problem.slug);
+                const storageResult = await new Promise((resolve) => chrome.storage.local.get(problemSlugs, resolve));
+                console.log('Storage Result:', storageResult); // Debug storage data
+                const enhancedProblems = processedProblems.map((problem) => {
+                const state = storageResult[problem.slug] || {};
+                return {
+                    ...problem,
+                    totalAssistance: state.totalAssistance || 0,
+                };
                 });
+
+                // Save to storage and send response
+                chrome.storage.local.set({ problems: enhancedProblems }, () => {
+                console.log('Problems saved to storage');
+                });
+                sendResponse(enhancedProblems); // Send immediately
             } catch (error) {
                 console.error('Error processing problem data:', error);
                 const stored = await new Promise((resolve) =>
-                    chrome.storage.local.get(['problems'], (result) => resolve(result.problems || []))
+                chrome.storage.local.get(['problems'], (result) => resolve(result.problems || []))
                 ) as any[];
+                console.log('Fallback Problems:', stored); // Debug fallback
                 sendResponse(stored);
             }
-        })();
-        return true; // Indicates async response
-    }
+            })();
+            return true; // Indicates async response
+        }
 });
