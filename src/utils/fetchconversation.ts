@@ -26,7 +26,7 @@ const fetchConversation = async (
   try {
     const response = await groqClient.post('/chat/completions', {
       temperature: 0.5,
-      model: 'llama3-70b-versatile',
+      model: 'llama-3.3-70b-versatile',
       messages
     });
 

@@ -764,7 +764,7 @@ const Panel = ({
                               className="w-full rounded-md px-4 py-2 border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white pr-14 overflow-wrap break-word"
                               rows={1}
                               value={userInput}
-                              placeholder="Don't be shy......(LeetCopilot can make mistakes)"
+                              placeholder="Don't be shy to ask...(LeetCopilot can make mistakes)"
                               onChange={(e) => setUserInput(e.target.value)}
                               onInput={(e) => {
                                 const target = e.target as HTMLTextAreaElement;
