@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Panel from './Panel';
-import LCPLogo from '@/assets/LCP.png';
+import LCPLogo from '@/assets/LC.png';
 import { DebugPatch } from '@/utils/debugger';
 import BugIcon from '@/assets/bug-icon.png';
 import { isSubmissionsPage, isExactLeetCodeProblemPage, cn } from '@/utils/browser';
@@ -233,7 +233,7 @@ const App = () => {
                   if (dragDistance < 5) togglePanel()
                 }}
               >
-                <img src={LCPLogo} alt="LCP" className="h-9 w-auto pointer-events-none" />
+                <img src={LCPLogo} alt="LCP" className="h-16 w-auto pointer-events-none" />
               </div>
             </div>
 
