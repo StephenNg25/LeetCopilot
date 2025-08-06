@@ -65,9 +65,9 @@ const createBaseManifest = async (): Promise<Manifest> => {
                 type: 'module'
             },
             icons: {
-                16: './assets/LC_16.png',
-                48: './assets/LC_48.png',
-                128: './assets/LC_128.png'
+                16: 'assets/LC_16.png',
+                48: 'assets/LC_48.png',
+                128: 'assets/LC_128.png'
             },
             permissions: ["cookies", "storage", "tabs", "scripting"],
             host_permissions: [
